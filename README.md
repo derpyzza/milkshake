@@ -3,6 +3,7 @@ milkshake — tiny gamedev framework.
 
 >[!Note]
 > this library is currently under development and everything you see here is subject to change
+>
 > i haven't fully decided on what i want the final library to work like
 > so the library is currently going through a heavy experimental phase where i try out ideas
 > and potentially discard them
@@ -11,6 +12,11 @@ this is an attempt to take some scattered engines and games i've made with openg
 combine them all into one handy little library so i don't have to continually
 keep copy pasting the same initialization code over and over again per project.
 
+currently this is targetting opengl 4.5 as the main rendering backend.
+however, i'd like to target a handful of extra backends in the future, namely:
+- GLES for running on android
+- WebGPU or WebGL for running on web
+- Software renderer for fun :)
 
 contents:
 - milkshake.h: the necessary basics
@@ -31,7 +37,11 @@ contents:
   - mesh
 
 - defaults/2D.h: handy defaults for 2D:
-  - 
+  - default 2D shapes rendering:
+    - rectangles
+    - circles
+    - regular polygons with arbitrary number of sides ( maybe capped at like 10 or 12? )
+  - simple tilemap renderer
 
 - defaults/3D.h: handy defaults for 3D:
   - default materials and shaders:
@@ -46,6 +56,7 @@ contents:
     - billboarded quads
 
 ## simple theoretical 3D app?
+
 ```c
 // simple3D.c
 
@@ -70,21 +81,44 @@ main(void) {
   ms_init_window(940, 720, "simple 3D", window_flags);
 
   int flags = MS3D_VERTEX_SNAPPING;
+  // initializes the default psx renderer, loads up the default shaders and such
   ms3d_init_renderer(flags);
 
-  const ms_handle * car = ms_load_model("assets/car.gltf", 0);
+  // loads in a car model from a gltf file
+  // models are treated as immutable readonly data
+  ms_handle * car = ms3D_load_model("assets/car.gltf", 0);
 
+  // initializes a new 3D camera
   ms_camera cam = new_cam(...);
-  ms_model_inst car_inst = ms_minst_from(car);
+  // creates a new mutable instance of a model
+  ms_modinst car_inst = ms_minst_from(car);
 
   while(!ms_should_quit()) {
-    ms_clear_bg();
+    // polls for input events, and does timekeeping stuff
+    ms_update_engine();
 
-    ms_bind_shader(ms_default_3D);    
-      ms_bind_cam(cam);
-      ms3d_draw_cube(pos, rot, col);
-    ms_swap();
+    // updates camera using a default camera update system
+    msdef_update_cam(&(msdef_cam_type){
+      .camtype = MSCAM_ORBITAL,
+      .autorotate = true,
+      .rotspeed = 0.1f
+    });
+
+    // sets up renderer state
+    ms3D_begin_render();
+      ms_clear_bg(0x050505ff);
+      // binds the global camera state
+      ms3D_bind_cam();
+      // submits a model instance for rendering
+      ms3D_draw_modinst(car_inst);
+    // sorts the render commands and submits them to the GPU for rendering
+    ms3D_end_render();
   }
+
+  // frees all held resources
+  ms3D_cleanup();
+  ms_cleanup();
+  return 0;
 }
 
 ```
