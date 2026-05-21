@@ -1,46 +1,22 @@
 #pragma once
 #include "milkshake/milkshake.h"
+#include <SDL3/SDL_gamepad.h>
 
 //
-// FIXME: improve the shader caching system, it's kinda jank rn
 // TODO: wrap gl_ctx in a #ifdef guard that takes it out if the
 // rendering backend being used is not an opengl one.
 // im not sure what kind of alternative backends i'd like to add yet, but
 // at the very least i'd like to add a software rendered backend.
 // 
+ 
+// these are just a bad habit at this point...
+#define PANIC_SDL(CHECK, MSG) if (CHECK) { dlog_fatal(MSG "\nError: %s\n", SDL_GetError()); }
+#define CRASH(CHECK,MSG) if (CHECK) { dlog_fatal(MSG"\nexiting now..."); exit(-1); }
+#define CRASH_SDL(CHECK,MSG) if (CHECK) { dlog_fatal(MSG "\nError: %s\n", SDL_GetError()); exit(-1); }
 
-#define MAX_SHADERS 64
-
-typedef struct ms_window {
-  int width, height;
-  bool focused, minimized;
-  dstr name;
-
-  SDL_Window* handle;
-  SDL_GLContext * gl_ctx;
-} ms_window;
-
-
-typedef struct ms_shader {
-  int id;
-  char name[MS_NAME_LEN];
-  char *vert, *frag;
-  int locs[MAX_SHADER_LOCS];
-} ms_shader;
-
-
-typedef struct ms_texture {
-	int id;
-	int width, height, nrChannel;
-
-	ms_sampler sampler;
-
-	dstr path; // filepath ( optional )
-} ms_texture;
-
+#define MAX_GAMEPADS 8
 
 struct _core {
-
   struct {
   	u8 last_pressed;
   	u8 last_released;
@@ -49,8 +25,8 @@ struct _core {
   } keyboard;
 
   struct {
-  	ivec2 pos;
-  	vec2 pos_delta;
+  	vec2s pos;
+  	vec2s pos_delta;
 
   	u8 prev_state;
   	u8 btn_state;
@@ -59,17 +35,23 @@ struct _core {
   	f32 prev_scroll;
   } mouse;
 
-  struct {} gamepad;
+  struct {
+    int id;
 
-  d_arena arena;
+    u8 last_pressed;
+    u8 last_released;
+    u8 btn_state[SDL_GAMEPAD_BUTTON_COUNT];
+    u8 prev_button_state[SDL_GAMEPAD_BUTTON_COUNT];
+  } gamepad[MAX_GAMEPADS];
 
-  ms_shader * shader_buffer;
-  ms_texture * texture_buffer;
-} G_core;
+  struct {
+    int width, height;
+    bool focused, minimized;
+    char title[MS_NAME_LEN];
 
-static struct {
-  char name[128];
-  int value;
-}shader_cache [MAX_SHADERS];
-static int shader_cache_index = 0;
+    SDL_Window* handle;
+    SDL_GLContext * gl_ctx;
+  } window;
+};
 
+extern struct _core G_core;

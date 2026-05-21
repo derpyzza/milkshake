@@ -15,7 +15,6 @@ keep copy pasting the same initialization code over and over again per project.
 currently this is targetting opengl 4.5 as the main rendering backend.
 however, i'd like to target a handful of extra backends in the future, namely:
 - GLES for running on android
-- WebGPU or WebGL for running on web
 - Software renderer for fun :)
 
 contents:
@@ -69,6 +68,7 @@ contents:
 // preset shaders
 #define MILKSHAKE3D_DEFAULT_PSX
 #include <milkshake/defaults/3D.h>
+#include <milkshake/defaults/camera.h>
 
 int
 main(void) {

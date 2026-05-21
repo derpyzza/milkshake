@@ -1,57 +1,38 @@
 #include "cglm/types-struct.h"
-#include "internal.h"
 #include "glad/glad.h"
+#include "internal.h"
 
 #include <GL/gl.h>
+#include <SDL3/SDL_events.h>
 #include <libderp/derp.h>
-#include <string.h>
 
+ms_uniform ms_get_uniform(ms_shader shader, const char* name) {
+  ms_uniform out = {0};
+  out.id = glGetUniformLocation(shader.id, name);
+  return out;
+}
 
-int _compile_shader(u32 * shader, GLint shader_type, const char* source) {
-  for(int i = 0; i < MAX_SHADERS; i++ ) {
-    if( !strcmp(source, shader_cache[i].name) ) {
-      *shader = shader_cache[i].value;
-      return 1;
-    }
-  }
-
+int _compile_shader(u32 * shader, GLint shader_type, dstr source) {
   *shader = glCreateShader(shader_type);
-  isize _slen = strlen(source);
-  isize len = (_slen > 128) ? 128 : _slen;
-  memcpy(shader_cache[shader_cache_index].name, source, len);
-  shader_cache[shader_cache_index].value = *shader;
-  shader_cache_index++;
-  
-	dstr src_file = dfile_read((char*)source);
-	if (!src_file.cptr) {
-		dlog_error("vertex shader file [%s] invalid", source);
-	}
-
+    
 	i32 success;
 	char infoLog[512];
 
-	glShaderSource(*shader, 1, (const char* const*)&src_file.cptr, (int*)&src_file.len);
+	glShaderSource(*shader, 1, (const char* const*)&source.cptr, (int*)&source.len);
 	glCompileShader(*shader);
 
 	glGetShaderiv(*shader, GL_COMPILE_STATUS, &success);
 	if (!success) {
 		glGetShaderInfoLog(*shader, 512, NULL, infoLog);
-		dlog_error("Vert shader [%s] comp failed:\n %s", source, infoLog);
+		dlog_error("Vert shader [%.*s] comp failed:\n %s", dstr_fmt(source), infoLog);
 	}
 
-	d_free(src_file.cptr);
 	return success;
 }
 
-
-// reads shader code from provided file paths and compiles and links the shader program.
-u32 ms_create_shader(
-  const char * vert_source,
-  const char * frag_source
-  ) {
-
-	dlog_debug("compiling shader\n\t> vert: [%s]\n\t> frag: [%s]", vert_source, frag_source);
-
+ms_shader ms_create_shader_from_source(
+  dstr vert_source,
+  dstr frag_source ) {
 	bool had_error = false;
 	i32 success;
 	char infoLog[512];
@@ -61,69 +42,91 @@ u32 ms_create_shader(
 
 	_compile_shader(&v_shader, GL_VERTEX_SHADER, vert_source);
 	_compile_shader(&f_shader, GL_FRAGMENT_SHADER, frag_source);
+  
+	ms_shader shader = {0};
+	shader.id = glCreateProgram();
 
-	u32 shader_program = 0;
-	shader_program = glCreateProgram();
+	glAttachShader(shader.id, v_shader);
+	glAttachShader(shader.id, f_shader);
 
-	glAttachShader(shader_program, v_shader);
-	glAttachShader(shader_program, f_shader);
+	glLinkProgram(shader.id);
 
-	glLinkProgram(shader_program);
-
-	glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
+	glGetProgramiv(shader.id, GL_LINK_STATUS, &success);
 	if(!success) {
-    glGetProgramInfoLog(shader_program, 512, NULL, infoLog);
+    glGetProgramInfoLog(shader.id, 512, NULL, infoLog);
 		dlog_error("Shader program comp failed: %s", infoLog);
 		had_error = true;
 	}
 
-	// glDeleteShader(v_shader);
-	// glDeleteShader(f_shader);
-
 	if(had_error) exit(-1);
 
-	dlog_debug("compiled shader [%i] from {%s, %s}", shader_program, vert_source, frag_source);
-
-	return shader_program;
+	return shader;
 }
 
-void ms_bind_shader( ms_handle * shader ) {
+
+// reads shader code from provided file paths and compiles and links the shader program.
+ms_shader ms_create_shader(
+  const char * vert_file,
+  const char * frag_file
+  ) {
+
+	dlog_debug("compiling shader\n\t> vert: [%s]\n\t> frag: [%s]", vert_file, frag_file);
+
+	dstr vert_source = dfile_read((char*)vert_file);
+	if (!vert_source.cptr) {
+		dlog_error("vertex shader file [%.*s] invalid", dstr_fmt(vert_source));
+	}
+	dstr frag_source = dfile_read((char*)frag_file);
+	if (!frag_source.cptr) {
+		dlog_error("vertex shader file [%.*s] invalid", dstr_fmt(frag_source));
+	}
+
+	ms_shader prog = ms_create_shader_from_source(vert_source, frag_source);
+	dlog_debug("compiled shader from {%s, %s}", vert_file, frag_file);
+
+	return prog;
+}
+
+void ms_bind_shader( ms_shader shader ) {
   // if( __current_shader != shader ) {
-    glUseProgram(((ms_shader*)shader)->id);
+    glUseProgram(shader.id);
   // }
 }
 
-void ms_shader_set_value  (ms_handle * shader, int loc, const void * data, enum ms_uniform_type val_type) {
+void ms_shader_set_value  (ms_shader shader, int loc, const void * data, enum ms_uniform_type val_type) {
   ms_shader_set_value_v(shader, loc, data, 1, val_type);
 }
 
-void ms_shader_set_value_v(ms_handle * shader, int loc, const void * data, isize count, enum ms_uniform_type val_type) {
+void ms_shader_set_value_v(ms_shader shader, int loc, const void * data, isize count, enum ms_uniform_type val_type) {
   switch(val_type) {
-    case MS_UNIFORM_FLOAT:  glUniform1fv(loc, count, (float*)data); break;
-    case MS_UNIFORM_FLOAT2: glUniform2fv(loc, count, (float*)data); break;
-    case MS_UNIFORM_FLOAT3: glUniform3fv(loc, count, (float*)data); break;
-    case MS_UNIFORM_FLOAT4: glUniform4fv(loc, count, (float*)data); break;
+    case MS_Uniform_Float:  glUniform1fv(loc, count, (float*)data); break;
+    case MS_Uniform_Float2: glUniform2fv(loc, count, (float*)data); break;
+    case MS_Uniform_Float3: glUniform3fv(loc, count, (float*)data); break;
+    case MS_Uniform_Float4: glUniform4fv(loc, count, (float*)data); break;
 
-    case MS_UNIFORM_INT:  glUniform1iv(loc, count, (int*)data); break;
-    case MS_UNIFORM_INT2: glUniform2iv(loc, count, (int*)data); break;
-    case MS_UNIFORM_INT3: glUniform3iv(loc, count, (int*)data); break;
-    case MS_UNIFORM_INT4: glUniform4iv(loc, count, (int*)data); break;
+    case MS_Uniform_Int:  glUniform1iv(loc, count, (int*)data); break;
+    case MS_Uniform_Int2: glUniform2iv(loc, count, (int*)data); break;
+    case MS_Uniform_Int3: glUniform3iv(loc, count, (int*)data); break;
+    case MS_Uniform_Int4: glUniform4iv(loc, count, (int*)data); break;
 
-    case MS_UNIFORM_UINT:  glUniform1uiv(loc, count, (uint*)data); break;
-    case MS_UNIFORM_UINT2: glUniform2uiv(loc, count, (uint*)data); break;
-    case MS_UNIFORM_UINT3: glUniform3uiv(loc, count, (uint*)data); break;
-    case MS_UNIFORM_UINT4: glUniform4uiv(loc, count, (uint*)data); break;
+    case MS_Uniform_Uint:  glUniform1uiv(loc, count, (uint*)data); break;
+    case MS_Uniform_Uint2: glUniform2uiv(loc, count, (uint*)data); break;
+    case MS_Uniform_Uint3: glUniform3uiv(loc, count, (uint*)data); break;
+    case MS_Uniform_Uint4: glUniform4uiv(loc, count, (uint*)data); break;
 
-    case MS_UNIFORM_SAMPLER2D: glUniform1iv(loc, count, (int*)data); break;
-    default: dlog_error("unknown uniform type %i for shader [%s]", val_type, ((ms_shader*)shader)->name );
+    case MS_Uniform_Sampler2D: glUniform1iv(loc, count, (int*)data); break;
+    default: {
+      dlog_error("unknown uniform type %i for shader [%i]", val_type, shader.id );
+      break;
+    }
     case MS_UNIFORM_COUNT: break;
   }
 }
 
-void ms_shader_set_matrix  (ms_handle* shader, int loc, mat4s * mat, bool transpose) {
-  ms_shader_set_matrix_v(shader, loc, mat, 1, transpose);
+void ms_shader_set_mat4(ms_shader shader, ms_uniform unif, mat4s *mat, bool transpose) {
+  ms_shader_set_mat4_v(shader, unif, mat, 1, transpose);
 }
 
-void ms_shader_set_matrix_v(ms_handle* shader, int loc, mat4s * mat, isize count, bool transpose) {
-  glUniformMatrix4fv(loc, count, transpose, (float*)mat->raw);
+void ms_shader_set_mat4_v(ms_shader shader, ms_uniform unif, mat4s * mat, isize count, bool transpose) {
+  glUniformMatrix4fv(unif.id, count, transpose, (float*)mat->raw);
 }
