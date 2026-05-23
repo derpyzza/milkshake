@@ -2,13 +2,41 @@
 #include "glad/glad.h"
 #include "milkshake/milkshake.h"
 #include <GL/gl.h>
+#include <SDL3/SDL_video.h>
 
+struct _core G_core;
+
+void ms_clear_colour(u32 hex) {
+	vec4s col = ms_col_from_hex(hex);
+	glClearColor(col.r, col.g, col.b, col.a);
+}
+
+ms_vao ms_create_vao(void) {
+	ms_vao out;
+	glGenVertexArrays(1, &out.id);
+	return out;
+}
+
+void ms_end_drawing(void) {
+	SDL_GL_SwapWindow(G_core.window.handle);
+}
+
+void ms_cleanup(void) {
+	glFinish();
+	SDL_GL_DestroyContext(G_core.window.gl_ctx);
+	SDL_DestroyWindow(G_core.window.handle);
+}
 
 void ms_init_window(int width, int height, const char* title, int flags) {
 #	ifdef __linux__ 
 	// TODO: compiler flag for forcing wayland
 	SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "x11");
 #	endif
+	dlog_init(DLOG_DEBUG);
+
+	G_core.window.width = width;
+	G_core.window.height = height;
+	G_core.window.title = (char*)title;
 
 	u32 sdl_flags =
 	  	SDL_INIT_VIDEO
@@ -44,11 +72,8 @@ void ms_init_window(int width, int height, const char* title, int flags) {
 	if( (flags & MS_WindowFlag_MsaaX4) == MS_WindowFlag_MsaaX4 ) {
 	  glEnable(GL_MULTISAMPLE);
 	}
-	SDL_GL_MakeCurrent(G_core.window.handle, *G_core.window.gl_ctx);
-
-	SDL_CaptureMouse(1);
+	SDL_GL_MakeCurrent(G_core.window.handle, G_core.window.gl_ctx);
 	SDL_SetWindowRelativeMouseMode(G_core.window.handle, true);
-	// SDL_WarpMouseInWindow(G_Window.handle, (float)window->width/2, (float)window->height/2);
 	// vsync. 0 is off, 1 is on
 	SDL_GL_SetSwapInterval(IS_FLAG_SET(flags, MS_WindowFlag_EnableVsync));	
 }
@@ -104,45 +129,40 @@ static const isize _get_type_size(int type) {
   // indexed vs non-indexed buffers
 
 
-ms_mesh ms_create_mesh(const void* verts, isize num_verts, const float * indices, isize num_indices, ms_vertex_layout layout) {
-	ms_mesh out = { 0 };
-	out.num_verts = num_verts;
-	out.num_indices = num_indices;
+ms_buffer ms_create_buffer(ms_buffertype type, const void * data, isize size) {
+	ms_buffer out = {0};
+	out.size = size;
+	out.type = type;
 
-	glGenVertexArrays(1, &out.vao);
-	glBindVertexArray(out.vao);
+	glGenBuffers(1, &out.id);
+	glBindBuffer(type, out.id);
+	// FIXME: hard-coding GL_STATIC_DRAW for now, fix that later.
+	glBufferData(type, size, data, GL_STATIC_DRAW);
 
-	glGenBuffers(1, &out.vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, out.vbo);
+	// unbind buffer, uhhhhh just because
+	glBindBuffer(type, 0);
+	return out;
+}
 
-	isize size = 0;
-	if(layout.num_attribs == 1) {
-		size = layout.attribs[0].size * _get_type_size(layout.attribs[0].type) * out.num_verts;
-	} else {
-		for(int i = 0; i < layout.num_attribs; i++) {
-			ms_vertex_attrib attr = layout.attribs[i];
-			size += attr.size * _get_type_size(attr.type) * out.num_verts;
-		}
-	}
+void ms_vao_attach_vbo(ms_vao *vao, ms_buffer buffer, ms_vertex_layout layout) {
+	glBindVertexArray(vao->id);
+	glBindBuffer(buffer.type, buffer.id);
 
-	for(int i = 0; i < layout.num_attribs; i++) {
-		ms_vertex_attrib attr = layout.attribs[i];
-	  glBufferData(
-	    GL_ARRAY_BUFFER,
-	    out.num_verts * layout.attribs[0].size * sizeof(float),
-	    verts,
-	    GL_STATIC_DRAW
-		);
+	dforeach(ms_vertex_attrib, attr, layout.attribs, layout.num_attribs) {
+		glEnableVertexAttribArray(attr->index);
 
-		glEnableVertexAttribArray(attr.index);
 		glVertexAttribPointer(
-		  attr.index,
-		  attr.size,
-		  attr.type,
-		  attr.normalized,
-		  attr.stride,
-		  (const void*) attr.offset
+		  attr->index,
+		  attr->size,
+		  attr->type,
+		  attr->normalized,
+		  attr->stride,
+		  (const void*) attr->offset
 		);
 	}
-	
+}
+
+void ms_vao_attach_ebo(ms_vao *vao, ms_buffer buffer) {
+	glBindVertexArray(vao->id);
+	glBindBuffer(buffer.type, buffer.id);
 }

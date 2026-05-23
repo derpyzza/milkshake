@@ -47,10 +47,10 @@ struct _core {
   struct {
     int width, height;
     bool focused, minimized;
-    char title[MS_NAME_LEN];
+    char* title;
 
     SDL_Window* handle;
-    SDL_GLContext * gl_ctx;
+    SDL_GLContext gl_ctx;
   } window;
 };
 

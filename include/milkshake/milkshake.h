@@ -95,10 +95,9 @@ enum ms_vertex_format_type {
 
 	MS_VertexFormat_Sampler2D,
 
-	MS_VertexFormat_COUNT
+	MS_VERTEXFORMAT_COUNT
 };
  
-
 
 // these are modelled off of the default vertex attributes
 // that gltf supports ( as they're the most common attributes you'll use )
@@ -111,7 +110,7 @@ typedef enum ms_vert_attr_kinds {
   // vec4 float
   MS_VertKind_Tangent,
   // vec2 float
-  MS_VertKind_Texcoord_N,
+  MS_VertKind_TexCoord_N,
   // vec4 float or uint32_t
   MS_VertKind_Colour_N,
   // uint[4]
@@ -121,58 +120,74 @@ typedef enum ms_vert_attr_kinds {
 
   MS_VertKind_Custom_N,
 
-  MS_VertKind_Count
+  MS_VERTKIND_COUNT
 } ms_vert_attr_kinds;
 
 enum ms_camtype {
-	MS_Camtype_Proj,
-	MS_Camtype_Ortho
+	MS_CamType_Proj,
+	MS_CamType_Ortho
 };
 
 
 typedef enum ms_cull_mode {
-  MS_CULLMODE_NONE,
-  MS_CULLMODE_BACK,
-  MS_CULLMODE_FRONT,
+  MS_CullMode_None,
+  MS_CullMode_Back,
+  MS_CullMode_Front,
 } ms_cull_mode;
 
 typedef enum ms_blend_mode {
-  MS_BLENDMODE_OPAQUE,
-  MS_BLENDMODE_ALPHA,
-  MS_BLENDMODE_MASK,
+  MS_BlendMode_Opaque,
+  MS_BlendMode_Alpha,
+  MS_BlendMode_Mask,
 } ms_blend_mode;
 
 typedef enum ms_draw_primitives {
-  MS_PRIM_TRIANGLE,
-  MS_PRIM_LINES,
-  MS_PRIM_POINTS,
-  MS_PRIM_TRIANGLE_STRIP,
-  MS_PRIM_TRIANGLE_FAN
+  MS_PrimMode_Points        = GL_POINTS,
+  MS_PrimMode_Lines         = GL_LINES,
+  MS_PrimMode_Triangle      = GL_TRIANGLES,
+  MS_PrimMode_TriangleStrip = GL_TRIANGLE_STRIP,
+  MS_PrimMode_TriangleFan   = GL_TRIANGLE_FAN,
+
+  MS_PRIMMODE_COUNT,
 } ms_draw_primitives;
 
 typedef enum ms_poly_mode {
-  MS_POLY_FILL,
-  MS_POLY_WIRE
+  MS_PolyMode_Fill,
+  MS_PolyMode_Wire
 } ms_poly_mode;
 
 typedef enum ms_buffertype {
-	MS_BufferInvalid,
-	MS_BufferVertex,
-	MS_BufferIndex,
+	MS_BufferType_Invalid,
+	MS_BufferType_Vertex        = GL_ARRAY_BUFFER,
+	MS_BufferType_Index         = GL_ELEMENT_ARRAY_BUFFER,
+	MS_BufferType_ShaderStorage = GL_SHADER_STORAGE_BUFFER,
+	MS_BufferType_Uniform       = GL_UNIFORM_BUFFER,
 } ms_buffertype;
 
 // }} ENUMS
 
 
+/*
+
+vertex_layout := {}
+vertex_layout.attribs = malloc(sizeof(vertex_attrib) * prim.accessors.length)
+
+for attr in prim.accessors[] {
+	switch attr.type {
+		Postion => {
+			vertex_layout.attribs.push(attr.data.to_attribs());
+		},
+		
+	}
+
+}
+
+
+*/
+
 // {{ TYPES
 
-typedef const void ms_handle;
-
-typedef struct {
-	int wrap_t, wrap_s;
-	int min_filter, max_filter;
-} ms_sampler;
-
+// typesafe wrappers cuz no one likes naked ints
 typedef struct {
 	u32 id;
 } ms_shader;
@@ -181,19 +196,80 @@ typedef struct {
 	u32 id;
 } ms_uniform;
 
+typedef struct ms_vao {
+	u32 id;
+} ms_vao;
+
+typedef struct {
+	int wrap_t, wrap_s;
+	int min_filter, max_filter;
+} ms_sampler;
+
 typedef struct ms_texture {
 	u32 id;
 	int width, height, nrChannel;
 
-	ms_sampler sampler;
+	ms_sampler sampler; // NOTE: do i even need to store this in the texture object?
 
 	char path[MS_NAME_LEN]; // filepath ( optional )
 } ms_texture;
 
+// pipeline state object, similar to the kinds of pipeline objects found in modern graphics apis like Vulkan, or sokol_gfx
+typedef struct ms_pipeline {
+  ms_shader * shader;
+  ms_cull_mode cullmode;
+  ms_blend_mode blend_mode;
+  ms_draw_primitives primitives;
+  ms_poly_mode poly_mode;
+} ms_pipeline;
+
+
+typedef struct ms_vertex_attrib {
+	int index;
+	int size;
+	int type;
+	bool normalized;
+	int stride;
+	isize offset;
+
+	// NOTE:
+	// this field is totally optional and is a convenience feature
+	// it exists so that the default gltf loader can automatically
+	// populate a vertex_layout struct correctly.
+	// 
+	// if you're manually specifying vertex layouts or loading models
+	// by hand, then feel free to not use this field if you don't want
+	// to
+	ms_vert_attr_kinds attr_kind;
+} ms_vertex_attrib;
+
+
+typedef struct ms_vertex_layout {
+	isize num_attribs;
+	ms_vertex_attrib * attribs;
+} ms_vertex_layout;
+
+
+typedef struct ms_buffer {
+	u32 id;
+	ms_buffertype type;
+	isize size;
+} ms_buffer;
+
+typedef struct ms_mesh {
+	ms_vao vao;
+	ms_buffer *vbo; // may either be a single buffer or an array of buffers
+	ms_buffer *ebo; // may be null
+
+	size_t num_buffers;
+	
+	size_t num_verts, num_indices;
+} ms_mesh;
+
 typedef struct ms_camera {	
 	vec3s   pos;
 	versors rot;
-	vec3s target;
+	vec3s   target;
 
 	vec3s front, forward, right;
 
@@ -209,52 +285,6 @@ typedef struct ms_camera2D {
 	mat4s view;
 } ms_camera2D;
 
-// pipeline state object, similar to the kinds of pipeline objects found in modern graphics apis like Vulkan, or sokol_gfx
-typedef struct ms_pipeline {
-  ms_shader * shader;
-  ms_cull_mode cullmode;
-  ms_blend_mode blend_mode;
-  ms_draw_primitives primitives;
-  ms_poly_mode poly_mode;
-} ms_pipeline;
-
-
-/*
-	uniform types:
-		vec2-4,
-		mat4,
-		sampler
-		single numbers
-
-	vertex format types:
-		f, f2, f3, f4, f16
-		i, i2, i3, i4
-		u, u2, u3, u4
-		b, b2, b3, b4
-		ub, ub2, ub3, ub4
-
-*/
-
-typedef struct ms_vertex_attrib {
-	int index;
-	int size;
-	int type;
-	bool normalized;
-	int stride;
-	isize offset;
-} ms_vertex_attrib;
-
-typedef struct ms_vertex_layout {
-	isize num_attribs;
-	ms_vertex_attrib * attribs;
-} ms_vertex_layout;
-
-typedef struct ms_mesh {
-	u32 vao, vbo, ebo;
-
-	size_t num_verts, num_indices;
-} ms_mesh;
-
 static const ms_vertex_layout MS_VERTLAYOUT_POSCOL = {
 	.num_attribs = 2,
 	.attribs = (ms_vertex_attrib[]){
@@ -262,15 +292,19 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSCOL = {
 			.index = 0,
 			.size = 3,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
+			.stride = 7*sizeof(float),
+			.offset = 0,
+			.attr_kind = MS_VertKind_Position,
 		},
 		{
 			.index = 1,
 			.size = 4,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
+			.stride = 7*sizeof(float),
+			.offset = 3*sizeof(float),
+			.attr_kind = MS_VertKind_Colour_N,
 		}
 	}
 };
@@ -282,15 +316,19 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUV = {
 			.index = 0,
 			.size = 3,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
+			.stride = 0,
+			.offset = 0,
+			.attr_kind = MS_VertKind_Position,
 		},
 		{
 			.index = 1,
 			.size = 2,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
+			.stride = 0,
+			.offset = 2*sizeof(float),
+			.attr_kind = MS_VertKind_TexCoord_N,
 		}
 	}
 };
@@ -304,6 +342,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 			.type = GL_FLOAT,
 			.stride = 0,
 			.normalized = false,
+			.attr_kind = MS_VertKind_Position,
 		},
 		{
 			.index = 1,
@@ -311,6 +350,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 			.type = GL_FLOAT,
 			.stride = 0,
 			.normalized = false,
+			.attr_kind = MS_VertKind_TexCoord_N,
 		},
 		{
 			.index = 2,
@@ -318,6 +358,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 			.type = GL_FLOAT,
 			.stride = 0,
 			.normalized = false,
+			.attr_kind = MS_VertKind_Colour_N,
 		}
 	}
 };
@@ -332,6 +373,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 			.type = GL_FLOAT,
 			.stride = 0,
 			.normalized = false,
+			.attr_kind = MS_VertKind_Position,
 		},
 		// normal, vec3f
 		{
@@ -340,31 +382,90 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 			.type = GL_FLOAT,
 			.stride = 0,
 			.normalized = false,
+			.attr_kind = MS_VertKind_Normal,
 		},
 		// uv, vec2f
 		{
-			.index = 1,
+			.index = 2,
 			.size = 2,
 			.type = GL_FLOAT,
 			.stride = 0,
 			.normalized = false,
+			.attr_kind = MS_VertKind_TexCoord_N,
 		},
 		// colour, vec4f
 		{
-			.index = 2,
+			.index = 3,
 			.size = 4,
 			.type = GL_FLOAT,
 			.stride = 0,
 			.normalized = false,
+			.attr_kind = MS_VertKind_Colour_N,
 		}
 	}
 };
 
+static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
+	.num_attribs = 2,
+	.attribs = (ms_vertex_attrib[]){
+		// position, vec3f
+		{
+			.index = 0,
+			.size = 3,
+			.type = GL_FLOAT,
+			.stride = 0,
+			.normalized = false,
+			.attr_kind = MS_VertKind_Position,
+		},
+		// normal, vec3f
+		{
+			.index = 1,
+			.size = 3,
+			.type = GL_FLOAT,
+			.stride = 0,
+			.normalized = true,
+			.attr_kind = MS_VertKind_Normal,
+		},
+		// uv, vec2f
+		{
+			.index = 2,
+			.size = 2,
+			.type = GL_FLOAT,
+			.stride = 0,
+			.normalized = false,
+			.attr_kind = MS_VertKind_TexCoord_N,
+		},
+		// colour, vec4f
+		{
+			.index = 3,
+			.size = 4,
+			.type = GL_FLOAT,
+			.stride = 0,
+			.normalized = true,
+			.attr_kind = MS_VertKind_Colour_N,
+		},
+		// joints, vec4i
+		{
+			.index = 4,
+			.size = 4,
+			.type = GL_INT,
+			.stride = 0,
+			.normalized = false,
+			.attr_kind = MS_VertKind_Joints_N,
+		},
+		// weights, vec4f
+		{
+			.index = 5,
+			.size = 4,
+			.type = GL_FLOAT,
+			.stride = 0,
+			.normalized = true,
+			.attr_kind = MS_VertKind_Weights_N,
+		},
+	}
+};
 
-typedef struct ms_buffer {
-	u32 id;
-	ms_buffertype type;
-} ms_buffer;
+
 
 // }} TYPES
 
@@ -374,25 +475,20 @@ typedef struct ms_buffer {
 void ms_init_window( int width, int height, const char* title, int flags );
 // update internal library state, like input state etc.
 void ms_update(void);
-// used for controlling the game loop, signals when it's time to quit
-bool ms_should_quit(void);
 void ms_cleanup(void);
 
-// sets up rendering stuff
-void ms_begin_drawing(void);
 // actually renders
 void ms_end_drawing(void);
-void ms_set_viewport(int x, int y, f32 w, f32 h);
-void ms_clear_bg(vec4s colour);
+void ms_clear_colour(u32 hex);
 
 // NOTE: all the colour functions deal with normalized colours
 // and will automatically normalize their inputs and outputs
 static inline vec4s ms_col_from_hex(u32 hex){
   return (vec4s) {{
-    hex >> 24,
-    hex >> 16,
-    hex >> 8,
-    hex
+	  ((hex >> 24) & 0xFF) / 255.0f,
+    ((hex >> 16) & 0xFF) / 255.0f,
+    ((hex >> 8)  & 0xFF) / 255.0f,
+     (hex        & 0xFF) / 255.0f 
   }};
 }
 
@@ -441,9 +537,16 @@ ms_texture ms_load_texture_from_memory( const u8* data, int data_len, ms_sampler
 void bind_texture(ms_texture * texture);
 void bind_texture_slot(ms_texture * texture, uint slot);
 
-ms_mesh ms_create_mesh(const void* verts, isize num_verts, const float * indices, isize num_indices, ms_vertex_layout layout);
-void ms_draw_mesh(ms_mesh mesh);
-void ms_destroy_mesh(u32 mesh);
+ms_vao ms_create_vao(void);
+ms_buffer ms_create_buffer(ms_buffertype type, const void * data, isize size);
+void ms_vao_attach_vbo(ms_vao *vao, ms_buffer buffer, ms_vertex_layout layout);
+void ms_vao_attach_ebo(ms_vao *vao, ms_buffer buffer);
+
+void ms_draw_vao(ms_vao);
+
+// ms_mesh ms_create_mesh(const void* verts, isize num_verts, const float * indices, isize num_indices, ms_vertex_layout layout);
+// void ms_draw_mesh(ms_mesh mesh);
+// void ms_destroy_mesh(u32 mesh);
 
 // {{{ INPUT
 // KEYBOARD FUNCTIONS

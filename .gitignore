@@ -1,3 +1,6 @@
 libs/
 .ignore
 test/
+a.out
+obj/
+out/

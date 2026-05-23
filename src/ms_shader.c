@@ -1,7 +1,7 @@
+#include "milkshake/milkshake.h"
+
 #include "cglm/types-struct.h"
 #include "glad/glad.h"
-#include "internal.h"
-
 #include <GL/gl.h>
 #include <SDL3/SDL_events.h>
 #include <libderp/derp.h>

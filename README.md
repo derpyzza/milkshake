@@ -12,6 +12,8 @@ this is an attempt to take some scattered engines and games i've made with openg
 combine them all into one handy little library so i don't have to continually
 keep copy pasting the same initialization code over and over again per project.
 
+calling raw opengl functions while using this library is expected and encouraged, as the library doesn't wrap over a lot of opengl functionality.
+
 currently this is targetting opengl 4.5 as the main rendering backend.
 however, i'd like to target a handful of extra backends in the future, namely:
 - GLES for running on android
@@ -23,43 +25,40 @@ contents:
   - timer functionality
   - input management
   - viewport and render-to-texture functionality
-  - shader loading and compilation and management
-  - text rendering
-  - resource management?
-  - draw-call batcher?
-  - cmdline option handling?
-- 2D.h: handy features for 2D rendering
-  - sprite batcher
-- 3D.h: 3D rendering stuff:
-  - gltf model loading
-  - skeleton
-  - mesh
+  - shader loading and compilation
+  - vertex layout structs
+- extras/
+  - 2D.h: handy features for 2D rendering
+    - sprite batcher
+    - text renderer
+  - 3D.h: 3D rendering stuff:
+    - gltf model loading
+    - skeletal animation
+    - mesh
 
-- defaults/2D.h: handy defaults for 2D:
-  - default 2D shapes rendering:
-    - rectangles
-    - circles
-    - regular polygons with arbitrary number of sides ( maybe capped at like 10 or 12? )
-  - simple tilemap renderer
-
-- defaults/3D.h: handy defaults for 3D:
-  - default materials and shaders:
-    - toon
-    - pbr
-    - retro psx
-    - unshaded
-  - default shapes and meshes:
-    - cube
-    - sphere
-    - torus
-    - billboarded quads
+- defaults/
+  - 2D.h: handy defaults for 2D:
+    - default 2D shapes rendering:
+      - rectangles
+      - circles
+      - regular polygons with arbitrary number of sides ( maybe capped at like 10 or 12? )
+    - simple tilemap renderer
+  - 3D.h: handy defaults for 3D:
+    - default materials and shaders:
+      - toon
+      - pbr
+      - retro psx
+      - unshaded
+    - default shapes and meshes:
+      - cube
+      - sphere
+      - torus
+      - billboarded quads
 
 ## simple theoretical 3D app?
 
 ```c
 // simple3D.c
-
-#define MILKSHAKE_BACKEND_GL45
 #include <milkshake/milkshake.h>
 // loads the default psx style renderer settings
 // comes with:
