@@ -28,8 +28,13 @@
 
 #include "input_enums.h"
 
-// TODO:
+// NOTE:
 // 	> maybe instead of having fixed length name strings i could instead have a library-wide arena for strings?
+// 	> maybe instead of making the window be part of G_core i instead just return a window object that the user
+// 		controls?
+// 		i'll still keep the input stuff private to G_core since the user really does not really need to care about those
+// 		( and can always just poll inputs directly with SDL if they do )
+// 		but the window i can see the user wanting to control by themselves
 // FIXME:
 // 	> ms_create_shader needs some sort of error throwing functionality. currently it logs an error but it needs to return some sort of error value that can be checked too.
 
@@ -164,6 +169,20 @@ typedef enum ms_buffertype {
 	MS_BufferType_Uniform       = GL_UNIFORM_BUFFER,
 } ms_buffertype;
 
+typedef enum ms_buffer_usage {
+	MS_BufferUsage_StreamDraw = GL_STREAM_DRAW,
+	MS_BufferUsage_StreamRead = GL_STREAM_READ,
+	MS_BufferUsage_StreamCopy = GL_STREAM_COPY,
+
+	MS_BufferUsage_StaticDraw = GL_STATIC_DRAW,
+	MS_BufferUsage_StaticRead = GL_STATIC_READ,
+	MS_BufferUsage_StaticCopy = GL_STATIC_COPY,
+
+	MS_BufferUsage_DynamicDraw = GL_DYNAMIC_DRAW,
+	MS_BufferUsage_DynamicRead = GL_DYNAMIC_READ,
+	MS_BufferUsage_DynamicCopy = GL_DYNAMIC_COPY,
+} ms_buffer_usage;
+
 // }} ENUMS
 
 
@@ -215,6 +234,8 @@ typedef struct ms_texture {
 } ms_texture;
 
 // pipeline state object, similar to the kinds of pipeline objects found in modern graphics apis like Vulkan, or sokol_gfx
+// NOTE: Should i get rid of this?
+// along with all the pipeline state structs? i don't really use them much rn
 typedef struct ms_pipeline {
   ms_shader * shader;
   ms_cull_mode cullmode;
@@ -477,7 +498,7 @@ void ms_init_window( int width, int height, const char* title, int flags );
 void ms_update(void);
 void ms_cleanup(void);
 
-// actually renders
+// calls the sdl_swap thingy
 void ms_end_drawing(void);
 void ms_clear_colour(u32 hex);
 
@@ -523,10 +544,10 @@ void ms_shader_set_mat4   (ms_shader, ms_uniform, mat4s*, bool);
 void ms_shader_set_mat4_v (ms_shader, ms_uniform, mat4s*, isize count, bool);
 
 void ms_bind_shader        ( ms_shader shader );
+// UNIMPLEMENTED:
 void ms_shader_set_value   ( ms_shader shader, int loc, const void * data, enum ms_uniform_type val_type );
+// UNIMPLEMENTED:
 void ms_shader_set_value_v ( ms_shader shader, int loc, const void * data, isize count, enum ms_uniform_type val_type );
-void ms_shader_set_matrix  ( ms_shader shader, int loc, mat4s * mat, bool transpose );
-void ms_shader_set_matrix_v( ms_shader shader, int loc, mat4s * mat, isize count, bool transpose );
 
 
 // these functions take in an optional pointer to a sampler
@@ -538,53 +559,52 @@ void bind_texture(ms_texture * texture);
 void bind_texture_slot(ms_texture * texture, uint slot);
 
 ms_vao ms_create_vao(void);
-ms_buffer ms_create_buffer(ms_buffertype type, const void * data, isize size);
+// NOTE: if usage is any of the DYNAMIC_* types then data may be NULL
+ms_buffer ms_create_buffer(ms_buffertype type, ms_buffer_usage usage, isize size, const void * data);
 void ms_vao_attach_vbo(ms_vao *vao, ms_buffer buffer, ms_vertex_layout layout);
 void ms_vao_attach_ebo(ms_vao *vao, ms_buffer buffer);
-
-void ms_draw_vao(ms_vao);
-
-// ms_mesh ms_create_mesh(const void* verts, isize num_verts, const float * indices, isize num_indices, ms_vertex_layout layout);
-// void ms_draw_mesh(ms_mesh mesh);
-// void ms_destroy_mesh(u32 mesh);
 
 // {{{ INPUT
 // KEYBOARD FUNCTIONS
 // returns true if the key is held for two consequtive frames
-bool ms_key_down         ( int key );
+bool ms_is_key_down         ( int key );
 // returns true if the key has been pressed once
-bool ms_key_pressed      ( int key );
+bool ms_is_key_pressed      ( int key );
 // returns true if the key has been released once
-bool ms_key_released     ( int key );
+bool ms_is_key_released     ( int key );
 // gets the last key pressed
-u8   ms_get_key_pressed  ( int key );
+// u8   ms_get_key_pressed  ( int key );
 // gets the last key released
-u8   ms_get_key_released ( int key );
+// u8   ms_get_key_released ( int key );
 
 // MOUSE FUNCTIONS
 // gets mouse position relative to the active window
-vec2s get_mouse_pos        (void);
-f32   get_mouse_x          (void);
-f32   get_mouse_y          (void);
+vec2s ms_mouse_pos        (void);
+f32   ms_mouse_x          (void);
+f32   ms_mouse_y          (void);
+vec2s ms_mouse_delta      (void);
+f32   ms_mouse_delta_x    (void);
+f32   ms_mouse_delta_y    (void);
 
-// gets mouse position relative to the active screen/monitor
-vec2s get_mouse_screen_pos (void);
-f32   get_mouse_screen_x   (void);
-f32   get_mouse_screen_y   (void);
-
-f32   get_scroll_amt    (void);
-bool  ms_mouse_down     ( u8 button );
-bool  ms_mouse_pressed  ( u8 button );
-bool  ms_mouse_released ( u8 button );
+f32   ms_mouse_scroll_amt   (void); // NOTE: is this really needed???
+f32   ms_mouse_scroll_delta (void);
+bool  ms_is_mouse_down     ( u8 button );
+bool  ms_is_mouse_pressed  ( u8 button );
+bool  ms_is_mouse_released ( u8 button );
 
 // GAMEPAD FUNCTIONS
-bool ms_button_down    ( uint gamepad, u8 button );
-bool ms_button_pressed ( uint gamepad, u8 button );
-bool ms_button_up      ( uint gamepad, u8 button );
-u8 get_button_pressed  ( uint gamepad );
-u8 get_button_released ( uint gamepad );
+// UNIMPLEMENTED:
+bool ms_is_button_down    ( uint gamepad, u8 button );
+// UNIMPLEMENTED:
+bool ms_is_button_pressed ( uint gamepad, u8 button );
+// UNIMPLEMENTED:
+bool ms_is_button_up      ( uint gamepad, u8 button );
+// u8   ms_get_button_pressed  ( uint gamepad );
+// u8   ms_get_button_released ( uint gamepad );
 
+// UNIMPLEMENTED:
 f32 get_stick_axis_x ( uint gamepad, u8 stick );
+// UNIMPLEMENTED:
 f32 get_stick_axis_y ( uint gamepad, u8 stick );
 // }}} INPUT
 

@@ -73,7 +73,7 @@ void ms_init_window(int width, int height, const char* title, int flags) {
 	  glEnable(GL_MULTISAMPLE);
 	}
 	SDL_GL_MakeCurrent(G_core.window.handle, G_core.window.gl_ctx);
-	SDL_SetWindowRelativeMouseMode(G_core.window.handle, true);
+	// SDL_SetWindowRelativeMouseMode(G_core.window.handle, true);
 	// vsync. 0 is off, 1 is on
 	SDL_GL_SetSwapInterval(IS_FLAG_SET(flags, MS_WindowFlag_EnableVsync));	
 }
@@ -109,35 +109,14 @@ static const isize _get_type_size(int type) {
 	}
 }
 
-
-  // maybe something like this would be better?
-  // ms_mesh m = ms_new_mesh();
-  // ms_mesh_add_buffer(&m, MS_BufferVertex, verts, 24, MS_VERTLAYOUT_POSCOL);
-  // ms_mesh_add_buffer(&m, MS_BufferIndex, indices, 36);
-  //
-  // i need to be able to account for the following scenarios:
-  //
-  // interleaved and non-interleaved vertex buffer data
-  //   - ms_mesh_add_buffer(&m, MS_BufferVertex, verts, 24, MS_VERTLAYOUT_POS);
-  //   - ms_mesh_add_buffer(&m, MS_BufferVertex, verts, 24, MS_VERTLAYOUT_COL);
-  //   - ms_mesh_add_buffer(&m, MS_BufferVertex, verts, 24, MS_VERTLAYOUT_UV);
-  //
-  // void ms_mesh_add_buffer(ms_mesh*, ms_buffer_type, void *, isize, layout) {
-  //    
-  // }
-  // static vs dynamic vertex buffers
-  // indexed vs non-indexed buffers
-
-
-ms_buffer ms_create_buffer(ms_buffertype type, const void * data, isize size) {
+ms_buffer ms_create_buffer(ms_buffertype type, ms_buffer_usage usage, isize size, const void * data) {
 	ms_buffer out = {0};
 	out.size = size;
 	out.type = type;
 
 	glGenBuffers(1, &out.id);
 	glBindBuffer(type, out.id);
-	// FIXME: hard-coding GL_STATIC_DRAW for now, fix that later.
-	glBufferData(type, size, data, GL_STATIC_DRAW);
+	glBufferData(type, size, data, usage);
 
 	// unbind buffer, uhhhhh just because
 	glBindBuffer(type, 0);
