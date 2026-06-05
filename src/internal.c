@@ -101,10 +101,29 @@ void ms_update(void) {
 
 static const isize _get_type_size(int type) {
 	switch (type) {
-		case GL_FLOAT: return sizeof(float); break;
-		case GL_INT: return sizeof(int); break;
-		case GL_BYTE: return sizeof(char); break;
-		// ... and so on
+		case GL_FLOAT:
+			return sizeof(float);
+		break;
+		case GL_DOUBLE:
+			return sizeof(double);
+		break;
+
+		case GL_SHORT:
+		case GL_UNSIGNED_SHORT:
+			return sizeof(short);
+		break;
+
+		case GL_INT:
+		case GL_UNSIGNED_INT:
+			return sizeof(int);
+		break;
+
+		case GL_BYTE:
+		case GL_UNSIGNED_BYTE:
+			return sizeof(char);
+		break;
+
+		// yeah idk what to put here tbh
 		default: return sizeof(float); break;
 	}
 }
@@ -135,7 +154,7 @@ void ms_vao_attach_vbo(ms_vao *vao, ms_buffer buffer, ms_vertex_layout layout) {
 		  attr->size,
 		  attr->type,
 		  attr->normalized,
-		  attr->stride,
+		  layout.stride,
 		  (const void*) attr->offset
 		);
 	}

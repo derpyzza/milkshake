@@ -122,6 +122,11 @@ main(void) {
 
 ```
 
+# Why's it called milkshake?
+because i had a really nice strawberry cheesecake milkshake once and i named my engine that i was working on at the time "cheesecake" after it.
+a lot of the basic code in this library was taken from that engine, so i named it milkshake.
+it really was a really nice milkshake.
+
 # License
 MIT License
 

@@ -250,7 +250,6 @@ typedef struct ms_vertex_attrib {
 	int size;
 	int type;
 	bool normalized;
-	int stride;
 	isize offset;
 
 	// NOTE:
@@ -267,6 +266,8 @@ typedef struct ms_vertex_attrib {
 
 typedef struct ms_vertex_layout {
 	isize num_attribs;
+	int stride; // shared across the entire vbo
+		          // if 0, then it's a
 	ms_vertex_attrib * attribs;
 } ms_vertex_layout;
 
@@ -308,13 +309,13 @@ typedef struct ms_camera2D {
 
 static const ms_vertex_layout MS_VERTLAYOUT_POSCOL = {
 	.num_attribs = 2,
+	.stride = 7 * sizeof(float),
 	.attribs = (ms_vertex_attrib[]){
 		{
 			.index = 0,
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = false,
-			.stride = 7*sizeof(float),
 			.offset = 0,
 			.attr_kind = MS_VertKind_Position,
 		},
@@ -323,8 +324,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSCOL = {
 			.size = 4,
 			.type = GL_FLOAT,
 			.normalized = false,
-			.stride = 7*sizeof(float),
-			.offset = 3*sizeof(float),
+			.offset = 3,
 			.attr_kind = MS_VertKind_Colour_N,
 		}
 	}
@@ -332,13 +332,13 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSCOL = {
 
 static const ms_vertex_layout MS_VERTLAYOUT_POSUV = {
 	.num_attribs = 2,
+	.stride = 5 * sizeof(float),
 	.attribs = (ms_vertex_attrib[]){
 		{
 			.index = 0,
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = false,
-			.stride = 0,
 			.offset = 0,
 			.attr_kind = MS_VertKind_Position,
 		},
@@ -347,8 +347,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUV = {
 			.size = 2,
 			.type = GL_FLOAT,
 			.normalized = false,
-			.stride = 0,
-			.offset = 2*sizeof(float),
+			.offset = 2,
 			.attr_kind = MS_VertKind_TexCoord_N,
 		}
 	}
@@ -356,12 +355,12 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUV = {
 
 static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 	.num_attribs = 2,
+	.stride = 9 * sizeof(float),
 	.attribs = (ms_vertex_attrib[]){
 		{
 			.index = 0,
 			.size = 3,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
 			.attr_kind = MS_VertKind_Position,
 		},
@@ -369,7 +368,6 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 			.index = 1,
 			.size = 2,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
 			.attr_kind = MS_VertKind_TexCoord_N,
 		},
@@ -377,7 +375,6 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 			.index = 2,
 			.size = 4,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
 			.attr_kind = MS_VertKind_Colour_N,
 		}
@@ -386,13 +383,13 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 
 static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 	.num_attribs = 2,
+	.stride = 12 * sizeof(float),
 	.attribs = (ms_vertex_attrib[]){
 		// position, vec3f
 		{
 			.index = 0,
 			.size = 3,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
 			.attr_kind = MS_VertKind_Position,
 		},
@@ -401,7 +398,6 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 			.index = 1,
 			.size = 3,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
 			.attr_kind = MS_VertKind_Normal,
 		},
@@ -410,7 +406,6 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 			.index = 2,
 			.size = 2,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
 			.attr_kind = MS_VertKind_TexCoord_N,
 		},
@@ -419,7 +414,6 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 			.index = 3,
 			.size = 4,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
 			.attr_kind = MS_VertKind_Colour_N,
 		}
@@ -428,13 +422,13 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 
 static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 	.num_attribs = 2,
+	.stride = 16 * sizeof(float) + 4 * sizeof(int),
 	.attribs = (ms_vertex_attrib[]){
 		// position, vec3f
 		{
 			.index = 0,
 			.size = 3,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
 			.attr_kind = MS_VertKind_Position,
 		},
@@ -443,7 +437,6 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 			.index = 1,
 			.size = 3,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = true,
 			.attr_kind = MS_VertKind_Normal,
 		},
@@ -452,7 +445,6 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 			.index = 2,
 			.size = 2,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = false,
 			.attr_kind = MS_VertKind_TexCoord_N,
 		},
@@ -461,7 +453,6 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 			.index = 3,
 			.size = 4,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = true,
 			.attr_kind = MS_VertKind_Colour_N,
 		},
@@ -470,7 +461,6 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 			.index = 4,
 			.size = 4,
 			.type = GL_INT,
-			.stride = 0,
 			.normalized = false,
 			.attr_kind = MS_VertKind_Joints_N,
 		},
@@ -479,7 +469,6 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 			.index = 5,
 			.size = 4,
 			.type = GL_FLOAT,
-			.stride = 0,
 			.normalized = true,
 			.attr_kind = MS_VertKind_Weights_N,
 		},
@@ -557,12 +546,16 @@ ms_texture ms_load_texture( const char* path, ms_sampler * sampler );
 ms_texture ms_load_texture_from_memory( const u8* data, int data_len, ms_sampler * sampler );
 void bind_texture(ms_texture * texture);
 void bind_texture_slot(ms_texture * texture, uint slot);
+void ms_unload_texture(ms_texture tex);
 
 ms_vao ms_create_vao(void);
 // NOTE: if usage is any of the DYNAMIC_* types then data may be NULL
 ms_buffer ms_create_buffer(ms_buffertype type, ms_buffer_usage usage, isize size, const void * data);
 void ms_vao_attach_vbo(ms_vao *vao, ms_buffer buffer, ms_vertex_layout layout);
 void ms_vao_attach_ebo(ms_vao *vao, ms_buffer buffer);
+
+void ms_destroy_vao(ms_vao vao);
+void ms_destroy_buffer(ms_buffer buffer);
 
 // {{{ INPUT
 // KEYBOARD FUNCTIONS

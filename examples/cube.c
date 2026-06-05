@@ -78,8 +78,20 @@ main(void) {
   ms_uniform view_loc =  ms_get_uniform(shader, "view");
 
   ms_vao cube = ms_create_vao();
-  ms_buffer vert_buf = ms_create_buffer(MS_BufferType_Vertex, verts, sizeof(verts));
-  ms_buffer index_buf = ms_create_buffer(MS_BufferType_Index, indices, sizeof(indices));
+  ms_buffer vert_buf =
+    ms_create_buffer(
+      MS_BufferType_Vertex
+      , MS_BufferUsage_StaticDraw
+      , sizeof(verts)
+      , verts
+    );
+  ms_buffer index_buf =
+    ms_create_buffer(
+      MS_BufferType_Index
+      , MS_BufferUsage_StaticDraw
+      , sizeof(indices)
+      , indices
+    );
   ms_vao_attach_vbo(&cube, vert_buf, MS_VERTLAYOUT_POSCOL);  
   ms_vao_attach_ebo(&cube, index_buf);
 
@@ -91,7 +103,7 @@ main(void) {
 
   while(!quit) {
     ms_update();
-    if(ms_key_pressed(Key_Escape)) {
+    if(ms_is_key_pressed(Key_Escape)) {
       quit = true;
     }
 
