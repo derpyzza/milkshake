@@ -60,8 +60,8 @@ void ms2D_destroy_spritebatch(ms2D_spritebatch * batch) {
   ms_destroy_buffer(batch->ebo);
 }
 
-ms_sprite create_sprite(vec2s pos, vec2s size, vec2s tex_pos, vec2s tex_size) {
-  ms_sprite out = { 0 };
+ms2D_sprite ms2D_create_sprite(vec2s pos, vec2s size, vec2s tex_pos, vec2s tex_size) {
+  ms2D_sprite out = { 0 };
   out.pos = pos;
   out.size = size;
 
@@ -74,7 +74,7 @@ ms_sprite create_sprite(vec2s pos, vec2s size, vec2s tex_pos, vec2s tex_size) {
   return out;
 }
 
-void ms2D_spritebatch_submit(ms2D_spritebatch * batch, ms_sprite sprite) {
+void ms2D_spritebatch_submit(ms2D_spritebatch * batch, ms2D_sprite sprite) {
   if(batch->size >= batch->capacity) {
     ms2D_spritebatch_flush(batch);
   }
@@ -105,7 +105,7 @@ void ms2D_spritebatch_submit(ms2D_spritebatch * batch, ms_sprite sprite) {
 
     // rotated coordinates in local-space ( pixels )
     float rot_x = local_x * cosa - local_y * sina;
-    float rot_y = local_x * sina - local_y * cosa;
+    float rot_y = local_x * sina + local_y * cosa;
 
     // final coordinates in world-space ( pixels )
     batch->current->pos.x = rot_x + sprite.pos.x;
@@ -126,8 +126,27 @@ void ms2D_spritebatch_submit(ms2D_spritebatch * batch, ms_sprite sprite) {
 }
 
 void ms2D_spritebatch_flush(ms2D_spritebatch * batch) {
-  glBindVertexArray(batch->vao.id);
-  glDrawElements(GL_TRIANGLES, batch->size * 6, GL_UNSIGNED_INT, NULL);
+  glBindBuffer(GL_ARRAY_BUFFER, batch->vbo.id); 
+  glBufferSubData(
+      GL_ARRAY_BUFFER, 
+      0, 
+      batch->size * 4 * sizeof(sprite_vertex), 
+      batch->verts
+  );
+
+  ms_draw_elems(
+    batch->vao
+    , GL_TRIANGLES
+    , GL_UNSIGNED_INT
+    , batch->size * 6
+    , NULL
+  );
+
+  batch->size = 0;
+  batch->current = batch->verts;
 }
 
-void ms2D_spritebatch_swap_texture(ms2D_spritebatch * batch, ms_texture tex);
+void ms2D_spritebatch_swap_texture(ms2D_spritebatch * batch, ms_texture tex) {
+  batch->texture = tex;
+  // ms2D_spritebatch_flush(batch);
+}

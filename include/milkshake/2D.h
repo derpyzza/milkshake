@@ -27,7 +27,7 @@ typedef struct sprite_vertex {
 } sprite_vertex;
 
 static const ms_vertex_layout MS_VERTLAYOUT_SPRITE = {
-  .num_attribs = 2,
+  .num_attribs = 3,
   .stride = 4 * sizeof(float) + sizeof(u32),
   .attribs = (ms_vertex_attrib[]){
     {
@@ -35,6 +35,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_SPRITE = {
       .size = 2,
       .type = GL_FLOAT,
       .normalized = false,
+      .offset = 0,
       .attr_kind = MS_VertKind_Position,
     },
     {
@@ -42,20 +43,22 @@ static const ms_vertex_layout MS_VERTLAYOUT_SPRITE = {
       .size = 2,
       .type = GL_FLOAT,
       .normalized = false,
+      .offset = 2 * sizeof(float),
       .attr_kind = MS_VertKind_TexCoord_N,
     },
     {
       .index = 2,
-      .size = 1,
-      .type = GL_INT,
-      .normalized = false,
+      .size = 4,
+      .type = GL_UNSIGNED_BYTE,
+      .normalized = true,
+      .offset = 4 * sizeof(float),
       .attr_kind = MS_VertKind_Colour_N,
     },
   }
 };
 
 
-typedef struct ms_sprite {
+typedef struct {
   vec2s pos;      // screen pos in pixels
   vec2s size;     // screen size in pixels
   vec2s origin;   // origin / pivot point for the sprite.
@@ -72,12 +75,11 @@ typedef struct ms_sprite {
 
   float rotation; // angle in degrees
 
-  // float opacity;  // optional opacity. 0-1.
-  float z_depth;  // optional z-value
   u32 colour;     // optional tint
-} ms_sprite;
+} ms2D_sprite;
 
 typedef struct ms2D_spritebatch {
+  // NOTE:
   // maybe in the future i could make a stronger spritebatch system where each
   // sprite batch can take in multiple texture draw calls and then automatically
   // sorts the draw calls by texture or whatnot, but for now, each spritebatch
@@ -98,21 +100,42 @@ typedef struct ms2D_spritebatch {
   ms_buffer vbo, ebo;
 } ms2D_spritebatch;
 
-ms2D_spritebatch create_spritebatch(ms_texture texture, isize num_sprites);
+ms2D_spritebatch ms2D_create_spritebatch(ms_texture texture, isize num_sprites);
 void ms2D_destroy_spritebatch(ms2D_spritebatch * sprite_batch);
 
-ms_sprite create_sprite(vec2s pos, vec2s size, vec2s tex_pos, vec2s tex_size);
+ms2D_sprite ms2D_create_sprite(vec2s pos, vec2s size, vec2s tex_pos, vec2s tex_size);
 
-void ms2D_spritebatch_submit(ms2D_spritebatch * batch, ms_sprite sprite);
+void ms2D_spritebatch_submit(ms2D_spritebatch * batch, ms2D_sprite sprite);
 void ms2D_spritebatch_swap_texture(ms2D_spritebatch * batch, ms_texture tex);
 void ms2D_spritebatch_flush(ms2D_spritebatch * batch);
 
 static const ms_shader ms2D_sprite_shader(void) {
   const dstr vert = dstr(
-    "#version core 330\n"
+    "#version 330 core\n"
+    "layout (location=0) in vec2 a_pos;"
+    "layout (location=1) in vec2 a_uv;"
+    "layout (location=2) in vec4 a_col;"
+    "out vec2 v_uv;"
+    "out vec4 v_col;"
+    "uniform mat4 view;"
+    "uniform mat4 proj;"
+    "void main() {"
+      // NOTE: hardcoding the depth value for now...
+      "gl_Position = proj * view * vec4(a_pos, 0.0, 1.0);"
+      "v_uv  = a_uv ;"
+      "v_col = a_col;"
+    "}"
   );
   const dstr frag = dstr(
-    "#version core 330\n"
+    "#version 330 core\n"
+    "out vec4 FragColour;"
+    "in vec2 v_uv;"
+    "in vec4 v_col;"
+    "uniform sampler2D tex;"
+    "void main() {"
+      "vec4 _tex = texture(tex, v_uv);"
+      "FragColour = _tex * v_col;"
+    "}"
   );
 
   return ms_create_shader_from_source(vert, frag);

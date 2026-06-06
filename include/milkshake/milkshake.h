@@ -30,19 +30,46 @@
 
 // NOTE:
 // 	> maybe instead of having fixed length name strings i could instead have a library-wide arena for strings?
-// 	> maybe instead of making the window be part of G_core i instead just return a window object that the user
-// 		controls?
+// 	> maybe instead of making the window be part of G_core i instead just return a window object that the user controls?
 // 		i'll still keep the input stuff private to G_core since the user really does not really need to care about those
 // 		( and can always just poll inputs directly with SDL if they do )
 // 		but the window i can see the user wanting to control by themselves
+// 	> i should probably organize the source files a bit better. mainly i need to move a lot of things out of internal.c
+// 		and into their own files. and i should probably also rename internal.c to something else and not have an internal.c
+// 		file. the only thing i need to have an internal.c for really is just a place to define the `extern`ed `G_core` struct.
+// 
+// TODO:
+// 	> implement framebuffer functionality
+// 	> implement a basic text renderer that uses the spritebatch functions
+// 	> implement instanced drawing functions
+// 	> implement mouse button input functions
+// 	> implement gamepad functions
+// 	> implement shader uniform setting functions for non-matrix uniforms
+// 	> for some reason the matrix uniform function takes in a shader parameter
+// 		investigate why that's there and if it should be kept as is.
+// 	> wrap G_core.gl_ctx in a #ifdef guard that takes it out if the
+// 		rendering backend being used is not an opengl one.
+// 		im not sure what kind of alternative backends i'd like to add yet, but
+// 		at the very least i'd like to add a software rendered backend.
+// 
+// 
 // FIXME:
-// 	> ms_create_shader needs some sort of error throwing functionality. currently it logs an error but it needs to return some sort of error value that can be checked too.
+// 	> ms_create_shader needs some sort of error throwing functionality. currently it logs an error but it needs to return some
+// 		 sort of error value that can be checked too.
+// 	> some parts of the library use the opengl 4.5 DSA api, ( in particular, the ms_texture.c functions ). this is undesirable.
+// 		in the future i'd like to add support for multiple opengl versions, particularly: core3.3, core4.x, GLES3, webgl2,
+// 		and the library should be structured in a way that supports all those apis. however, for now, i should pick an api version
+// 		and stick to it, and i don't want to use core4.5 for the current version of the library.
+// 	> wrap sampler values into an enum
+// 	> wrap texture types into an enum
+// 	> currently there's no way to quit the app when you press the quit button, as the SDL_QUIT event is not being handled. figure
+// 		out how to do that.
+// 		
 
 // {{ DEFINES
 #define MS_VERSION "0.0.0"
 #define MS_NAME_LEN 128     /* string length for name fields in structs to avoid having to allocate strings everywhere */
 #define MAX_SHADER_LOCS 32  /* maximum uniform locations a shader can have */
-#define MAX_SHADERSTAGES 64
 #define MAX_SHADERS 64
 
 
@@ -116,23 +143,17 @@ typedef enum ms_vert_attr_kinds {
   MS_VertKind_Tangent,
   // vec2 float
   MS_VertKind_TexCoord_N,
-  // vec4 float or uint32_t
+  // vec4 float or uint32_t modelled as a vec4 ubyte
   MS_VertKind_Colour_N,
-  // uint[4]
+  // vec4 int
   MS_VertKind_Weights_N,
-  // uint[4]
+  // vec4 float
   MS_VertKind_Joints_N,
 
   MS_VertKind_Custom_N,
 
   MS_VERTKIND_COUNT
 } ms_vert_attr_kinds;
-
-enum ms_camtype {
-	MS_CamType_Proj,
-	MS_CamType_Ortho
-};
-
 
 typedef enum ms_cull_mode {
   MS_CullMode_None,
@@ -185,25 +206,6 @@ typedef enum ms_buffer_usage {
 
 // }} ENUMS
 
-
-/*
-
-vertex_layout := {}
-vertex_layout.attribs = malloc(sizeof(vertex_attrib) * prim.accessors.length)
-
-for attr in prim.accessors[] {
-	switch attr.type {
-		Postion => {
-			vertex_layout.attribs.push(attr.data.to_attribs());
-		},
-		
-	}
-
-}
-
-
-*/
-
 // {{ TYPES
 
 // typesafe wrappers cuz no one likes naked ints
@@ -228,13 +230,16 @@ typedef struct ms_texture {
 	u32 id;
 	int width, height, nrChannel;
 
-	ms_sampler sampler; // NOTE: do i even need to store this in the texture object?
+	// NOTE:
+	// do i even need to store this in the texture object?
+	ms_sampler sampler;
 
 	char path[MS_NAME_LEN]; // filepath ( optional )
 } ms_texture;
 
 // pipeline state object, similar to the kinds of pipeline objects found in modern graphics apis like Vulkan, or sokol_gfx
-// NOTE: Should i get rid of this?
+// NOTE:
+// Should i get rid of this?
 // along with all the pipeline state structs? i don't really use them much rn
 typedef struct ms_pipeline {
   ms_shader * shader;
@@ -301,12 +306,6 @@ typedef struct ms_camera {
 	mat4s view, proj;
 } ms_camera;
 
-typedef struct ms_camera2D {
-	vec3s pos;
-	vec2s size;
-	mat4s view;
-} ms_camera2D;
-
 static const ms_vertex_layout MS_VERTLAYOUT_POSCOL = {
 	.num_attribs = 2,
 	.stride = 7 * sizeof(float),
@@ -324,7 +323,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSCOL = {
 			.size = 4,
 			.type = GL_FLOAT,
 			.normalized = false,
-			.offset = 3,
+			.offset = 3 * sizeof(float),
 			.attr_kind = MS_VertKind_Colour_N,
 		}
 	}
@@ -347,7 +346,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUV = {
 			.size = 2,
 			.type = GL_FLOAT,
 			.normalized = false,
-			.offset = 2,
+			.offset = 3 * sizeof(float),
 			.attr_kind = MS_VertKind_TexCoord_N,
 		}
 	}
@@ -362,6 +361,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = false,
+			.offset = 0,
 			.attr_kind = MS_VertKind_Position,
 		},
 		{
@@ -369,6 +369,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 			.size = 2,
 			.type = GL_FLOAT,
 			.normalized = false,
+			.offset = 3 * sizeof(float),
 			.attr_kind = MS_VertKind_TexCoord_N,
 		},
 		{
@@ -376,6 +377,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 			.size = 4,
 			.type = GL_FLOAT,
 			.normalized = false,
+			.offset = 5 * sizeof(float),
 			.attr_kind = MS_VertKind_Colour_N,
 		}
 	}
@@ -391,6 +393,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = false,
+			.offset = 0,
 			.attr_kind = MS_VertKind_Position,
 		},
 		// normal, vec3f
@@ -399,6 +402,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = false,
+			.offset = 3 * sizeof(float),
 			.attr_kind = MS_VertKind_Normal,
 		},
 		// uv, vec2f
@@ -407,6 +411,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 			.size = 2,
 			.type = GL_FLOAT,
 			.normalized = false,
+			.offset = 6 * sizeof(float),
 			.attr_kind = MS_VertKind_TexCoord_N,
 		},
 		// colour, vec4f
@@ -415,6 +420,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 			.size = 4,
 			.type = GL_FLOAT,
 			.normalized = false,
+			.offset = 8 * sizeof(float),
 			.attr_kind = MS_VertKind_Colour_N,
 		}
 	}
@@ -430,6 +436,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = false,
+			.offset = 0,
 			.attr_kind = MS_VertKind_Position,
 		},
 		// normal, vec3f
@@ -438,6 +445,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = true,
+			.offset = 3 * sizeof(float),
 			.attr_kind = MS_VertKind_Normal,
 		},
 		// uv, vec2f
@@ -446,6 +454,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 			.size = 2,
 			.type = GL_FLOAT,
 			.normalized = false,
+			.offset = 6 * sizeof(float),
 			.attr_kind = MS_VertKind_TexCoord_N,
 		},
 		// colour, vec4f
@@ -454,6 +463,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 			.size = 4,
 			.type = GL_FLOAT,
 			.normalized = true,
+			.offset = 8 * sizeof(float),
 			.attr_kind = MS_VertKind_Colour_N,
 		},
 		// joints, vec4i
@@ -462,6 +472,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 			.size = 4,
 			.type = GL_INT,
 			.normalized = false,
+			.offset = 12 * sizeof(float),
 			.attr_kind = MS_VertKind_Joints_N,
 		},
 		// weights, vec4f
@@ -470,6 +481,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 			.size = 4,
 			.type = GL_FLOAT,
 			.normalized = true,
+			.offset = 12 * sizeof(float) + 4 * sizeof(int),
 			.attr_kind = MS_VertKind_Weights_N,
 		},
 	}
@@ -491,7 +503,8 @@ void ms_cleanup(void);
 void ms_end_drawing(void);
 void ms_clear_colour(u32 hex);
 
-// NOTE: all the colour functions deal with normalized colours
+// NOTE:
+// all the colour functions deal with normalized colours
 // and will automatically normalize their inputs and outputs
 static inline vec4s ms_col_from_hex(u32 hex){
   return (vec4s) {{
@@ -529,14 +542,13 @@ ms_shader ms_create_shader_from_source( dstr vert_source, dstr frag_source );
 
 ms_uniform ms_get_uniform(ms_shader, const char* name);
 
-void ms_shader_set_mat4   (ms_shader, ms_uniform, mat4s*, bool);
-void ms_shader_set_mat4_v (ms_shader, ms_uniform, mat4s*, isize count, bool);
-
 void ms_bind_shader        ( ms_shader shader );
 // UNIMPLEMENTED:
 void ms_shader_set_value   ( ms_shader shader, int loc, const void * data, enum ms_uniform_type val_type );
 // UNIMPLEMENTED:
 void ms_shader_set_value_v ( ms_shader shader, int loc, const void * data, isize count, enum ms_uniform_type val_type );
+void ms_shader_set_mat4   (ms_shader, ms_uniform, mat4s*, bool);
+void ms_shader_set_mat4_v (ms_shader, ms_uniform, mat4s*, isize count, bool);
 
 
 // these functions take in an optional pointer to a sampler
@@ -549,13 +561,22 @@ void bind_texture_slot(ms_texture * texture, uint slot);
 void ms_unload_texture(ms_texture tex);
 
 ms_vao ms_create_vao(void);
-// NOTE: if usage is any of the DYNAMIC_* types then data may be NULL
+// NOTE:
+// if usage is any of the DYNAMIC_* types then data may be NULL
 ms_buffer ms_create_buffer(ms_buffertype type, ms_buffer_usage usage, isize size, const void * data);
 void ms_vao_attach_vbo(ms_vao *vao, ms_buffer buffer, ms_vertex_layout layout);
 void ms_vao_attach_ebo(ms_vao *vao, ms_buffer buffer);
 
 void ms_destroy_vao(ms_vao vao);
 void ms_destroy_buffer(ms_buffer buffer);
+
+// TODO:
+// implement the instanced versions of these two functions.
+// NOTE:
+// is there some way i can get rid of or abstract away the `prim_mode` and `type`
+// parameters?
+void ms_draw_elems(ms_vao vao, int prim_mode, int type, isize count, const int* start);
+void ms_draw_arrays(ms_vao vao, int prim_mode, int index, int num_verts);
 
 // {{{ INPUT
 // KEYBOARD FUNCTIONS

@@ -2,13 +2,6 @@
 #include "milkshake/milkshake.h"
 #include <SDL3/SDL_gamepad.h>
 
-//
-// TODO: wrap gl_ctx in a #ifdef guard that takes it out if the
-// rendering backend being used is not an opengl one.
-// im not sure what kind of alternative backends i'd like to add yet, but
-// at the very least i'd like to add a software rendered backend.
-// 
- 
 // these are just a bad habit at this point...
 #define PANIC_SDL(CHECK, MSG) if (CHECK) { dlog_fatal(MSG "\nError: %s\n", SDL_GetError()); }
 #define CRASH(CHECK,MSG) if (CHECK) { dlog_fatal(MSG"\nexiting now..."); exit(-1); }
@@ -52,6 +45,11 @@ struct _core {
     SDL_Window* handle;
     SDL_GLContext gl_ctx;
   } window;
+
+  struct {
+    int num_draw_calls;      // number of draw calls made this frame
+    int prev_num_draw_calls; // number of draw calls made in the previous frame
+  } stats;
 };
 
 extern struct _core G_core;

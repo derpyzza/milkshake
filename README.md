@@ -14,13 +14,20 @@ keep copy pasting the same initialization code over and over again per project.
 
 calling raw opengl functions while using this library is expected and encouraged, as the library doesn't wrap over a lot of opengl functionality.
 
-currently this is targetting opengl 4.5 as the main rendering backend.
+currently this is targetting opengl 3.0 as the main rendering backend.
 however, i'd like to target a handful of extra backends in the future, namely:
 - GLES for running on android
+- webgl2 for the web
 - Software renderer for fun :)
 
+do note though that the library won't wrap over any limitations of any of those
+APIs, and you as the user are expected to know the shortcomings of the opengl versions
+you're using and structure your program accordingly. the library will do the barest
+minimum by making sure the correct functions are being used internally for the chosen
+gl versions, and that's it.
+
 contents:
-- milkshake.h: the necessary basics
+- milkshake.h: the necessary basics ( gl + sdl wrapper )
   - window and gl context creation
   - timer functionality
   - input management

@@ -1,13 +1,9 @@
-#include "internal.h"
+#include <libderp/derp.h>
+#include <milkshake/milkshake.h>
 #include "stb_image.h"
 #include <glad/glad.h>
 #include <GL/gl.h>
 #include <math.h>
-
-// FIXME:
-// instead of the texture functions returning a new texture, they should instead
-// be requesting a texture from the library and then returning a handle to that
-// texture
 
 void image_get_fmt(int format, int *infmt, int* outfmt) {
 	switch (format) {
@@ -68,7 +64,6 @@ ms_create_texture(
     GL_UNSIGNED_BYTE,// Data type
     data             // Pointer to pixels
   );
-	glGenerateTextureMipmap(out.id);
 
 	return out;
 }
