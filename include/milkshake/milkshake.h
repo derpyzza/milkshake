@@ -208,6 +208,15 @@ typedef enum ms_buffer_usage {
 
 // {{ TYPES
 
+typedef struct {
+  int width, height;
+  bool focused, minimized;
+  char* title;
+
+  SDL_Window* handle;
+  SDL_GLContext gl_ctx;
+} ms_window;
+
 // typesafe wrappers cuz no one likes naked ints
 typedef struct {
 	u32 id;
@@ -494,7 +503,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 // {{ FUNCTION PROTOTYPES
 
 // create and initialize a window
-void ms_init_window( int width, int height, const char* title, int flags );
+ms_window ms_init_window( int width, int height, const char* title, int flags );
 // update internal library state, like input state etc.
 void ms_update(void);
 void ms_cleanup(void);

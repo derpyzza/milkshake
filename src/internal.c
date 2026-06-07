@@ -2,6 +2,8 @@
 #include "glad/glad.h"
 #include "milkshake/milkshake.h"
 #include <GL/gl.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_video.h>
 
 struct _core G_core;
@@ -37,26 +39,18 @@ ms_vao ms_create_vao(void) {
 	return out;
 }
 
-void ms_end_drawing(void) {
-	SDL_GL_SwapWindow(G_core.window.handle);
-}
-
-void ms_cleanup(void) {
-	glFinish();
-	SDL_GL_DestroyContext(G_core.window.gl_ctx);
-	SDL_DestroyWindow(G_core.window.handle);
-}
-
-void ms_init_window(int width, int height, const char* title, int flags) {
+ms_window ms_init_window(int width, int height, const char* title, int flags) {
 #	ifdef __linux__ 
 	// TODO: compiler flag for forcing wayland
 	SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "x11");
 #	endif
 	dlog_init(DLOG_DEBUG);
 
-	G_core.window.width = width;
-	G_core.window.height = height;
-	G_core.window.title = (char*)title;
+	ms_window out = {0};
+
+	out.width = width;
+	out.height = height;
+	out.title = (char*)title;
 
 	u32 sdl_flags =
 	  	SDL_INIT_VIDEO
@@ -77,36 +71,52 @@ void ms_init_window(int width, int height, const char* title, int flags) {
 		| SDL_WINDOW_RESIZABLE
 		| SDL_WINDOW_HIGH_PIXEL_DENSITY
 		;
-	G_core.window.handle = SDL_CreateWindow(
-		G_core.window.title,
-		G_core.window.width,
-		G_core.window.height,
+	out.handle = SDL_CreateWindow(
+		out.title,
+		out.width,
+		out.height,
 		window_flags
 	);
 
-	CRASH_SDL(G_core.window.handle == NULL, "Window is NULL");
+	CRASH_SDL(out.handle == NULL, "Window is NULL");
 
-	G_core.window.gl_ctx = SDL_GL_CreateContext(G_core.window.handle);
+	out.gl_ctx = SDL_GL_CreateContext(out.handle);
 	if(!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) printf("Failed to load gl"), exit(-1);
 	
 	if( (flags & MS_WindowFlag_MsaaX4) == MS_WindowFlag_MsaaX4 ) {
 	  glEnable(GL_MULTISAMPLE);
 	}
-	SDL_GL_MakeCurrent(G_core.window.handle, G_core.window.gl_ctx);
-	// SDL_SetWindowRelativeMouseMode(G_core.window.handle, true);
+	SDL_GL_MakeCurrent(out.handle, out.gl_ctx);
+	// SDL_SetWindowRelativeMouseMode(out.handle, true);
 	// vsync. 0 is off, 1 is on
 	SDL_GL_SetSwapInterval(IS_FLAG_SET(flags, MS_WindowFlag_EnableVsync));	
+
+	return out;
 }
 
 
 void ms_update(void) {
-  SDL_PumpEvents();
+	SDL_Event ev;
+	while(SDL_PollEvent(&ev)) {
+		switch(ev.type) {
+
+			case SDL_EVENT_MOUSE_WHEEL: {
+				f32 scroll = ev.wheel.y;
+				if(ev.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) scroll *= -1;
+				G_core.mouse.scroll_accum += scroll;
+				break;
+			}
+		}
+	}
+	
   int len;
   u8* keys = (u8*)SDL_GetKeyboardState(&len);
   memcpy(G_core.keyboard.prev_state, G_core.keyboard.keystate, len);
   memcpy(G_core.keyboard.keystate, keys, len);
 
-  G_core.mouse.scroll = 0;
+  G_core.mouse.prev_scroll = G_core.mouse.scroll;
+  G_core.mouse.scroll = G_core.mouse.scroll_accum;
+  G_core.mouse.scroll_accum = 0;
   G_core.mouse.prev_state = G_core.mouse.btn_state;
   vec2s prev_pos = G_core.mouse.pos;
 

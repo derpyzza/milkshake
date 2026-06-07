@@ -24,6 +24,7 @@ struct _core {
   	u8 prev_state;
   	u8 btn_state;
 
+  	f32 scroll_accum;
   	f32 scroll; // positive for up, negative for down
   	f32 prev_scroll;
   } mouse;
@@ -36,15 +37,6 @@ struct _core {
     u8 btn_state[SDL_GAMEPAD_BUTTON_COUNT];
     u8 prev_button_state[SDL_GAMEPAD_BUTTON_COUNT];
   } gamepad[MAX_GAMEPADS];
-
-  struct {
-    int width, height;
-    bool focused, minimized;
-    char* title;
-
-    SDL_Window* handle;
-    SDL_GLContext gl_ctx;
-  } window;
 
   struct {
     int num_draw_calls;      // number of draw calls made this frame
