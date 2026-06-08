@@ -1,3 +1,4 @@
+#include <SDL3/SDL_video.h>
 #include <milkshake/milkshake.h>
 #include <milkshake/2D.h>
 
@@ -13,7 +14,7 @@
 
 int
 main(void) {
-  ms_init_window(WINW, WINH, "spritebatch", 0);
+  ms_window window = ms_init_window(WINW, WINH, "spritebatch", 0);
 
   ms_texture tex = ms_load_texture("./res/sprites.png",
      &(ms_sampler){GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST});
@@ -89,6 +90,6 @@ main(void) {
 
       ms2D_spritebatch_flush(&batch);
 
-    ms_end_drawing();
+    SDL_GL_SwapWindow(window.handle);
   }
 }

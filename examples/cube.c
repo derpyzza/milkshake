@@ -1,4 +1,3 @@
-#include <SDL3/SDL_scancode.h>
 #include <milkshake/milkshake.h>
 
 const static dstr vert = dstr(
@@ -69,7 +68,7 @@ static const uint indices[] = {
 
 int
 main(void) {
-  ms_init_window(800, 800, "WINDOW", MS_WindowFlag_Resizable);
+  ms_window window = ms_init_window(800, 800, "WINDOW", MS_WindowFlag_Resizable);
   bool quit = false;
 
   ms_shader shader = ms_create_shader_from_source(vert, frag);
@@ -118,6 +117,6 @@ main(void) {
 
       glBindVertexArray(cube.id);
       glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-    ms_end_drawing();
+    SDL_GL_SwapWindow(window.handle);
   }
 }

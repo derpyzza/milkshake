@@ -30,10 +30,6 @@
 
 // NOTE:
 // 	> maybe instead of having fixed length name strings i could instead have a library-wide arena for strings?
-// 	> maybe instead of making the window be part of G_core i instead just return a window object that the user controls?
-// 		i'll still keep the input stuff private to G_core since the user really does not really need to care about those
-// 		( and can always just poll inputs directly with SDL if they do )
-// 		but the window i can see the user wanting to control by themselves
 // 	> i should probably organize the source files a bit better. mainly i need to move a lot of things out of internal.c
 // 		and into their own files. and i should probably also rename internal.c to something else and not have an internal.c
 // 		file. the only thing i need to have an internal.c for really is just a place to define the `extern`ed `G_core` struct.
@@ -506,10 +502,6 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 ms_window ms_init_window( int width, int height, const char* title, int flags );
 // update internal library state, like input state etc.
 void ms_update(void);
-void ms_cleanup(void);
-
-// calls the sdl_swap thingy
-void ms_end_drawing(void);
 void ms_clear_colour(u32 hex);
 
 // NOTE:

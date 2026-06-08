@@ -109,7 +109,7 @@ void ms2D_spritebatch_submit(ms2D_spritebatch * batch, ms2D_sprite sprite);
 void ms2D_spritebatch_swap_texture(ms2D_spritebatch * batch, ms_texture tex);
 void ms2D_spritebatch_flush(ms2D_spritebatch * batch);
 
-static const ms_shader ms2D_sprite_shader(void) {
+static inline ms_shader ms2D_sprite_shader(void) {
   const dstr vert = dstr(
     "#version 330 core\n"
     "layout (location=0) in vec2 a_pos;"
