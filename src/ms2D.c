@@ -1,3 +1,14 @@
+/* milkshake
+ * 
+ * Copyright (c) 2026 derpyzza
+ * 
+ * This file is released under the terms of the MIT license.
+ * Read LICENSE for more information.
+ *
+ * no LLMS were used to write the code in this library.
+*/ 
+
+#include "glad/glad.h"
 #include "cglm/struct/vec2.h"
 #include "milkshake/milkshake.h"
 #include <math.h>

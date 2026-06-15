@@ -1,5 +1,15 @@
-#include "internal.h"
+/* milkshake
+ * 
+ * Copyright (c) 2026 derpyzza
+ * 
+ * This file is released under the terms of the MIT license.
+ * Read LICENSE for more information.
+ *
+ * no LLMS were used to write the code in this library.
+*/ 
+
 #include "glad/glad.h"
+#include "internal.h"
 #include "milkshake/milkshake.h"
 #include <GL/gl.h>
 #include <SDL3/SDL_events.h>

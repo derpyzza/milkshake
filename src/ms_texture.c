@@ -1,8 +1,18 @@
+/* milkshake
+ * 
+ * Copyright (c) 2026 derpyzza
+ * 
+ * This file is released under the terms of the MIT license.
+ * Read LICENSE for more information.
+ *
+ * no LLMS were used to write the code in this library.
+*/ 
+
+#include <glad/glad.h>
+#include <GL/gl.h>
 #include <libderp/derp.h>
 #include <milkshake/milkshake.h>
 #include "stb_image.h"
-#include <glad/glad.h>
-#include <GL/gl.h>
 #include <math.h>
 
 void image_get_fmt(int format, int *infmt, int* outfmt) {
@@ -23,7 +33,8 @@ ms_create_texture(
   int w,
   int infmt,
   int outfmt,
-  const void* data, ms_sampler * sampler
+  const void* data,
+  const ms_sampler * sampler
 ) {
 	ms_texture out = {
 		.width = w,
@@ -68,7 +79,7 @@ ms_create_texture(
 	return out;
 }
 
-ms_texture ms_load_texture( const char* path, ms_sampler * sampler ) {
+ms_texture ms_load_texture( const char* path, const ms_sampler * sampler ) {
 	dassert(path, "filepath should not be null");
 
 	ms_texture out = { 0 };
@@ -84,7 +95,7 @@ ms_texture ms_load_texture( const char* path, ms_sampler * sampler ) {
 }
 
 ms_texture
-ms_load_texture_from_memory( const u8* data, int data_len, ms_sampler * sampler ) {
+ms_load_texture_from_memory( const u8* data, int data_len, const ms_sampler * sampler ) {
 	dassert( data, "input pixel data should not be null" );
 
 	ms_texture out = { 0 };
