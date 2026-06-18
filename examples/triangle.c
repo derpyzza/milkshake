@@ -1,3 +1,4 @@
+#include <SDL3/SDL_events.h>
 #include <milkshake/milkshake.h>
 
 const static dstr vert = dstr(
@@ -26,10 +27,12 @@ static const float verts[] = {
     0.0f,  0.5f, 0.0f, 0, 0, 1, 1,
 };
 
+static bool quit = false;
+
+
 int
 main(void) {
   ms_window window = ms_init_window(800, 800, "WINDOW", MS_WindowFlag_Resizable);
-  bool quit = false;
 
   ms_shader shader = ms_create_shader_from_source(vert, frag);
   ms_vao tri = ms_create_vao();
@@ -37,9 +40,6 @@ main(void) {
   ms_vao_attach_vbo(&tri, vert_buf, MS_VERTLAYOUT_POSCOL);  
 
   while(!quit) {
-    // inputs internal input list and polls for events
-    ms_update();
-
     if(ms_is_key_pressed(Key_Escape)) {
       quit = true;
     }

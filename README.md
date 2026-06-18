@@ -27,29 +27,41 @@ minimum by making sure the correct functions are being used internally for the c
 gl versions, and that's it.
 
 contents:
-- milkshake.h: the necessary basics ( gl + sdl wrapper )
+- milkshake.h:
+  the necessary basics ( gl + sdl wrapper )
   - window and gl context creation
   - timer functionality
   - input management
   - viewport and render-to-texture functionality
   - shader loading and compilation
   - vertex layout structs
-- extras/
-  - 2D.h: handy features for 2D rendering
-    - sprite batcher
-    - text renderer
-  - 3D.h: 3D rendering stuff:
-    - gltf model loading
-    - skeletal animation
-    - mesh
 
+- app.h:
+  tiny application wrapper similar to sokol_app.h that simply wraps over
+  the main game loop stuff and provides a simple callback based api to use.
+  
+  recommended mainly for jams and small prototypes.
+  for larger games i'd recommend controlling the main loop yourself.
+
+- 2D.h:
+  handy features for 2D rendering
+    - sprite batcher
+
+planned:
+- text renderer
+- simple tilemap renderer
+- 3D.h: 3D rendering stuff:
+  - gltf model loading
+  - skeletal animation
+  - mesh
 - defaults/
   - 2D.h: handy defaults for 2D:
     - default 2D shapes rendering:
+      - line rendering
+      - curve rendering ( bezier )
       - rectangles
       - circles
       - regular polygons with arbitrary number of sides ( maybe capped at like 10 or 12? )
-    - simple tilemap renderer
   - 3D.h: handy defaults for 3D:
     - default materials and shaders:
       - toon
@@ -57,6 +69,8 @@ contents:
       - retro psx
       - unshaded
     - default shapes and meshes:
+      - 3D lines
+      - 3D curves
       - cube
       - sphere
       - torus

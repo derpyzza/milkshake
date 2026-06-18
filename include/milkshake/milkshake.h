@@ -502,12 +502,6 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 
 // {{ FUNCTION PROTOTYPES
 
-// create and initialize a window
-ms_window ms_init_window( int width, int height, const char* title, int flags );
-// update internal library state, like input state etc.
-void ms_update(void);
-void ms_clear_colour(u32 hex);
-
 // NOTE:
 // all the colour functions deal with normalized colours
 // and will automatically normalize their inputs and outputs
@@ -527,18 +521,23 @@ static inline u32 ms_col_to_hex(vec4s c) {
 
 static inline vec4s ms_col(u8 r, u8 g, u8 b, u8 a) {
 	return (vec4s) {{
-		(float)r, (float)g, (float)b, (float)a
+		(float)r/255.0f, (float)g/255/0.f, (float)b/255/0.f, (float)a/255/0.f
 	}};
 }
 
 static inline vec4s ms_col_f(f32 r, f32 g, f32 b, f32 a) {
-	if( r > 1 ) r /= 255;
-	if( g > 1 ) g /= 255;
-	if( b > 1 ) b /= 255;
-	if( a > 1 ) a /= 255;
+	if( r > 1 ) r /= 255.0f;
+	if( g > 1 ) g /= 255.0f;
+	if( b > 1 ) b /= 255.0f;
+	if( a > 1 ) a /= 255.0f;
 	return (vec4s){{r,g,b,a}};
 }
 
+// create and initialize a window
+ms_window ms_init_window( int width, int height, const char* title, int flags );
+// update internal library state, like input state etc.
+void ms_update(void);
+void ms_clear_colour(u32 hex);
 
 // reads shader code from provided file paths and compiles and links the shader program.
 // return's a handle to the shader
