@@ -13,6 +13,7 @@
 #include <SDL3/SDL.h>
 #include <libderp/derp.h>
 #include <cglm/struct.h>
+#include "glad/glad.h"
 #include <GL/gl.h>
 
 #include "input_enums.h"
