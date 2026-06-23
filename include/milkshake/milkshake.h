@@ -533,11 +533,18 @@ static inline vec4s ms_col_f(f32 r, f32 g, f32 b, f32 a) {
 	return (vec4s){{r,g,b,a}};
 }
 
+typedef fnptr(void, handle_events_cb, SDL_Event);
+
 // create and initialize a window
 ms_window ms_init_window( int width, int height, const char* title, int flags );
 // update internal library state, like input state etc.
 void ms_update(void);
+bool ms_should_quit(void);
+void ms_set_event_callback(handle_events_cb cb);
+
 void ms_clear_colour(u32 hex);
+
+int ms_num_drawcalls(void);
 
 // reads shader code from provided file paths and compiles and links the shader program.
 // return's a handle to the shader

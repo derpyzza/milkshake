@@ -17,14 +17,14 @@
 #define CRASH(CHECK,MSG) if (CHECK) { dlog_fatal(MSG"\nexiting now..."); exit(-1); }
 #define CRASH_SDL(CHECK,MSG) if (CHECK) { dlog_fatal(MSG "\nError: %s\n", SDL_GetError()); exit(-1); }
 
-#define MAX_GAMEPADS 8
+#define MS_MAX_GAMEPADS 8
 
 struct _core {
   struct {
-  	u8 last_pressed;
-  	u8 last_released;
-  	u8 prev_state [SDL_SCANCODE_COUNT];
-  	u8 keystate   [SDL_SCANCODE_COUNT];
+  	int last_pressed;
+  	int last_released;
+  	u8 prev_state [MS_KEY_COUNT];
+  	u8 keystate   [MS_KEY_COUNT];
   } keyboard;
 
   struct {
@@ -46,12 +46,14 @@ struct _core {
     u8 last_released;
     u8 btn_state[SDL_GAMEPAD_BUTTON_COUNT];
     u8 prev_button_state[SDL_GAMEPAD_BUTTON_COUNT];
-  } gamepad[MAX_GAMEPADS];
+  } gamepad[MS_MAX_GAMEPADS];
 
   struct {
     int num_draw_calls;      // number of draw calls made this frame
     int prev_num_draw_calls; // number of draw calls made in the previous frame
   } stats;
+
+  bool should_quit;
 };
 
 extern struct _core G_core;

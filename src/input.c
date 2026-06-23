@@ -27,19 +27,19 @@ ms_is_key_down(int key) {
 }
 
 bool
-ms_mouse_pressed(u8 key) {
+ms_is_mouse_pressed(u8 key) {
   return
     (G_core.mouse.btn_state & SDL_BUTTON_MASK(key))
     && !(G_core.mouse.prev_state & SDL_BUTTON_MASK(key));
 }
 
 bool
-ms_mouse_released(u8 key) {
+ms_is_mouse_released(u8 key) {
   return !(G_core.mouse.btn_state & SDL_BUTTON_MASK(key));
 }
 
 bool
-ms_mouse_down(u8 key) {
+ms_is_mouse_down(u8 key) {
   return
     (G_core.mouse.btn_state & SDL_BUTTON_MASK(key))
     && (G_core.mouse.prev_state & SDL_BUTTON_MASK(key));

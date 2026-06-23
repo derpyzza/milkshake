@@ -102,7 +102,8 @@ main(void) {
 
   while(!quit) {
     ms_update();
-    if(ms_is_key_pressed(Key_Escape)) {
+
+    if(ms_is_key_pressed(Key_Escape) || ms_should_quit()) {
       quit = true;
     }
 

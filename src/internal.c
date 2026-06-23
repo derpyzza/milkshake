@@ -18,6 +18,12 @@
 
 struct _core G_core;
 
+handle_events_cb user_event_cb = NULL;
+
+void ms_set_event_callback(handle_events_cb cb) {
+	user_event_cb = cb;
+}
+
 ms_window ms_init_window(int width, int height, const char* title, int flags) {
 #	ifdef __linux__ 
 	// TODO: compiler flag for forcing wayland
@@ -73,40 +79,60 @@ ms_window ms_init_window(int width, int height, const char* title, int flags) {
 	return out;
 }
 
+int ms_num_drawcalls(void) {
+	return G_core.stats.num_draw_calls;
+}
+
+bool ms_should_quit(void) {
+	return G_core.should_quit;
+}
 
 void ms_update(void) {
 	G_core.stats.prev_num_draw_calls = G_core.stats.num_draw_calls;
 	G_core.stats.num_draw_calls = 0;
-	
+
+  memcpy(G_core.keyboard.prev_state, G_core.keyboard.keystate, MS_KEY_COUNT);
+
 	SDL_Event ev;
 	while(SDL_PollEvent(&ev)) {
 		switch(ev.type) {
-
+			case SDL_EVENT_QUIT: G_core.should_quit = true; break;
+			
 			case SDL_EVENT_MOUSE_WHEEL: {
 				f32 scroll = ev.wheel.y;
 				if(ev.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) scroll *= -1;
 				G_core.mouse.scroll_accum += scroll;
 				break;
 			}
+
+			case SDL_EVENT_KEY_DOWN: {
+				G_core.keyboard.keystate[ev.key.scancode] = true;
+				G_core.keyboard.last_pressed = ev.key.scancode;
+				break;
+			}
+
+			case SDL_EVENT_KEY_UP: {
+				G_core.keyboard.keystate[ev.key.scancode] = false;
+				G_core.keyboard.last_released = ev.key.scancode;
+				break;
+			}
 		}
+
+		if(user_event_cb != NULL) user_event_cb(ev);
 	}
 	
-  int len;
-  u8* keys = (u8*)SDL_GetKeyboardState(&len);
-  memcpy(G_core.keyboard.prev_state, G_core.keyboard.keystate, len);
-  memcpy(G_core.keyboard.keystate, keys, len);
-
   G_core.mouse.prev_scroll = G_core.mouse.scroll;
   G_core.mouse.scroll = G_core.mouse.scroll_accum;
   G_core.mouse.scroll_accum = 0;
   G_core.mouse.prev_state = G_core.mouse.btn_state;
-  vec2s prev_pos = G_core.mouse.pos;
 
   float mx, my;
-  G_core.mouse.btn_state = SDL_GetRelativeMouseState(&mx, &my);
+  G_core.mouse.btn_state = SDL_GetMouseState(&mx, &my);
 
-  G_core.mouse.pos.x += mx;
-  G_core.mouse.pos.y += my;
+  G_core.mouse.pos.x = mx;
+  G_core.mouse.pos.y = my;
 
-  G_core.mouse.pos_delta = glms_vec2_sub(G_core.mouse.pos, prev_pos);
+  SDL_GetRelativeMouseState(&mx, &my);
+	G_core.mouse.pos_delta.x = mx;
+	G_core.mouse.pos_delta.y = my;
 }

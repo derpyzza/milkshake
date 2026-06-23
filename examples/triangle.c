@@ -29,10 +29,9 @@ static const float verts[] = {
 
 static bool quit = false;
 
-
 int
 main(void) {
-  ms_window window = ms_init_window(800, 800, "WINDOW", MS_WindowFlag_Resizable);
+  ms_window window = ms_init_window(800, 600, "WINDOW", MS_WindowFlag_Resizable);
 
   ms_shader shader = ms_create_shader_from_source(vert, frag);
   ms_vao tri = ms_create_vao();
@@ -40,7 +39,9 @@ main(void) {
   ms_vao_attach_vbo(&tri, vert_buf, MS_VERTLAYOUT_POSCOL);  
 
   while(!quit) {
-    if(ms_is_key_pressed(Key_Escape)) {
+    ms_update();
+    
+    if(ms_is_key_pressed(Key_Escape) || ms_should_quit()) {
       quit = true;
     }
 

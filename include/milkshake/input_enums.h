@@ -1,4 +1,5 @@
 #include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_mouse.h>
 
 // these are ripped straight from the sdl scancodes enum
 // i mainly just wanted to not have to type out the whole SDL_SCANCODE_ portion
@@ -276,4 +277,3 @@ enum Keys {
 
   MS_KEY_COUNT = 512
 };
-

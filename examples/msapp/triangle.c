@@ -1,4 +1,4 @@
-#include "milkshake/milkshake.h"
+#define MS_APP_IMPL
 #include <milkshake/ms_app.h>
 #define WIN_W 800
 #define WIN_H 600
@@ -31,9 +31,9 @@ struct {
 
 void init(void) {
   const float verts[] = {
-     -0.5f, -0.5f, 0.0f, 1, 0, 0, 1,
-      0.5f, -0.5f, 0.0f, 0, 1, 0, 1,
-      0.0f,  0.5f, 0.0f, 0, 0, 1, 1,
+     -0.5f, -0.5f, 0.0f, 0, 0, 0, 1,
+      0.5f, -0.5f, 0.0f, 1, 0, 0, 1,
+      0.0f,  0.5f, 0.0f, 0, 1, 0, 1,
   };
 
   state.shader = ms_create_shader_from_source(vert, frag);
