@@ -36,7 +36,7 @@ main(void) {
   ms_shader shader = ms_create_shader_from_source(vert, frag);
   ms_vao tri = ms_create_vao();
   ms_buffer vert_buf = ms_create_buffer(MS_BufferType_Vertex , MS_BufferUsage_StaticDraw , sizeof(verts) , verts);
-  ms_vao_attach_vbo(&tri, vert_buf, MS_VERTLAYOUT_POSCOL);  
+  ms_vao_attach_vbo(tri, vert_buf, MS_VERTLAYOUT_POSCOL);  
 
   while(!quit) {
     ms_update();

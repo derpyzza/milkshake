@@ -13,13 +13,13 @@
 #include "internal.h"
 
 void ms_draw_elems(ms_vao vao, int prim_mode, int type, isize count, const int* start) {
-	glBindVertexArray(vao.id);
+	ms_bind_vao(vao);
 	glDrawElements(prim_mode, count, type, start);
 	G_core.stats.num_draw_calls++;
 }
 
 void ms_draw_arrays(ms_vao vao, int prim_mode, int index, int num_verts) {
-	glBindVertexArray(vao.id);
+	ms_bind_vao(vao);
 	glDrawArrays(prim_mode, index, num_verts);
 	G_core.stats.num_draw_calls++;
 }
@@ -40,7 +40,13 @@ void ms_destroy_vao(ms_vao vao) {
 	glDeleteVertexArrays(1, &vao.id);
 }
 
-const inline isize _get_type_size(int type) {
+void ms_bind_vao(ms_vao vao) {
+	if(G_core.gl_data.current_vao.id != vao.id) {
+		glBindVertexArray(vao.id);
+	}
+}
+
+isize _get_type_size(int type) {
 	switch (type) {
 		case GL_FLOAT:
 			return sizeof(float);
@@ -88,8 +94,8 @@ void ms_destroy_buffer(ms_buffer buffer) {
 }
 
 
-void ms_vao_attach_vbo(ms_vao *vao, ms_buffer buffer, ms_vertex_layout layout) {
-	glBindVertexArray(vao->id);
+void ms_vao_attach_vbo(ms_vao vao, ms_buffer buffer, ms_vertex_layout layout) {
+	ms_bind_vao(vao);
 	glBindBuffer(buffer.type, buffer.id);
 
 	dforeach(ms_vertex_attrib, attr, layout.attribs, layout.num_attribs) {
@@ -106,8 +112,64 @@ void ms_vao_attach_vbo(ms_vao *vao, ms_buffer buffer, ms_vertex_layout layout) {
 	}
 }
 
-void ms_vao_attach_ebo(ms_vao *vao, ms_buffer buffer) {
-	glBindVertexArray(vao->id);
+void ms_vao_attach_ebo(ms_vao vao, ms_buffer buffer) {
+	ms_bind_vao(vao);
 	glBindBuffer(buffer.type, buffer.id);
 }
 
+// FRAMEBUFFERS {{
+
+ms_framebuffer ms_create_fbo (void) {
+	ms_framebuffer out = { 0 };
+	glCreateFramebuffers(1, &out.id);
+	return out;
+}
+
+void ms_destroy_fbo(ms_framebuffer fbo) {
+	glDeleteFramebuffers(1, &fbo.id);
+}
+
+void ms_bind_fbo(ms_framebuffer fbo) {
+	if(G_core.gl_data.current_fbo.id != fbo.id) {
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo.id);
+	}
+}
+
+// binds 0 (the default screen)
+void ms_unbind_fbo (void) {
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void ms_fbo_attach_texture(ms_framebuffer fbo, ms_texture tex, enum ms_attachment slot, int num, int mip_level) {
+	ms_bind_fbo(fbo);
+	int _slot = slot == MS_ATTACHMENT_COLOR_N ? (int)slot+num : (int)slot;
+  glFramebufferTexture(GL_FRAMEBUFFER, _slot, tex.id, mip_level);
+}
+
+void ms_fbo_attach_rbo(ms_framebuffer fbo, ms_renderbuffer rbo, enum ms_attachment slot, int num) {
+	ms_bind_fbo(fbo);
+	int _slot = slot == MS_ATTACHMENT_COLOR_N ? (int)slot+num : (int)slot;
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, _slot, GL_RENDERBUFFER, rbo.id);
+}
+
+bool ms_fbo_is_complete(ms_framebuffer fbo) {
+	ms_bind_fbo(fbo);
+  u32 status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  return status == GL_FRAMEBUFFER_COMPLETE;
+}
+// }} FRAMEBUFFERS
+
+// RENDER BUFFERS {{
+
+ms_renderbuffer ms_create_rbo (void) {
+	ms_renderbuffer out = { 0 };
+	glCreateRenderbuffers(1, &out.id);
+	return out;
+}
+
+void ms_destroy_rbo(ms_renderbuffer rbo) {
+	glDeleteRenderbuffers(1, &rbo.id);
+}
+
+// }} RENDER BUFFERS

@@ -19,20 +19,15 @@
 #include "input_enums.h"
 
 // NOTE:
-// 	> maybe instead of having fixed length name strings i could instead have a library-wide arena for strings?
-// 	> i should probably organize the source files a bit better. mainly i need to move a lot of things out of internal.c
-// 		and into their own files. and i should probably also rename internal.c to something else and not have an internal.c
-// 		file. the only thing i need to have an internal.c for really is just a place to define the `extern`ed `G_core` struct.
+// 	> maybe instead of having fixed length name strings i could instead have a
+//    library-wide arena for strings?
+// 
 // 
 // TODO:
-// 	> implement framebuffer functionality
+//  > implement support for textures that aren't just 2D textures
 // 	> implement a basic text renderer that uses the spritebatch functions
 // 	> implement instanced drawing functions
-// 	> implement mouse button input functions
 // 	> implement gamepad functions
-// 	> implement shader uniform setting functions for non-matrix uniforms
-// 	> for some reason the matrix uniform function takes in a shader parameter
-// 		investigate why that's there and if it should be kept as is.
 // 	> wrap G_core.gl_ctx in a #ifdef guard that takes it out if the
 // 		rendering backend being used is not an opengl one.
 // 		im not sure what kind of alternative backends i'd like to add yet, but
@@ -50,16 +45,20 @@
 // 
 // 
 // FIXME:
-// 	> ms_create_shader needs some sort of error throwing functionality. currently it logs an error but it needs to return some
-// 		 sort of error value that can be checked too.
-// 	> some parts of the library use the opengl 4.5 DSA api, ( in particular, the ms_texture.c functions ). this is undesirable.
-// 		in the future i'd like to add support for multiple opengl versions, particularly: core3.3, core4.x, GLES3, webgl2,
-// 		and the library should be structured in a way that supports all those apis. however, for now, i should pick an api version
-// 		and stick to it, and i don't want to use core4.5 for the current version of the library.
+// 	> ms_create_shader needs some sort of error throwing functionality.
+//    currently it logs an error but it needs to return some sort of
+//    error value that can be checked too.
+// 	> some parts of the library use the opengl 4.5 DSA api,
+//    ( in particular, the ms_texture.c functions ). this is undesirable.
+// 		in the future i'd like to add support for multiple opengl versions,
+//    particularly: core3.3, core4.x, GLES3, webgl2, and the library
+//    should be structured in a way that supports all those apis. however,
+//    for now, i should pick an api version and stick to it, and i don't
+//    want to use core4.5 for the current version of the library.
+// 		i should probably just use core3.3 as the default desktop version with core3.0 as
+// 		the default web/android version
 // 	> wrap sampler values into an enum
 // 	> wrap texture types into an enum
-// 	> currently there's no way to quit the app when you press the quit button, as the SDL_QUIT event is not being handled. figure
-// 		out how to do that.
 // 		
 
 // {{ DEFINES
@@ -88,7 +87,7 @@ enum ms_window_flags {
 	MS_WINDOWFLAG_COUNT
 };
 
-enum ms_uniform_type {
+typedef enum ms_uniform_type{
 	MS_Uniform_Float,
 	MS_Uniform_Float2,
 	MS_Uniform_Float3,
@@ -107,7 +106,7 @@ enum ms_uniform_type {
 	MS_Uniform_Sampler2D,
 
 	MS_UNIFORM_COUNT
-};
+} ms_uniform_type;
 
 enum ms_vertex_format_type {
 	MS_VertexFormat_Float,
@@ -204,6 +203,13 @@ typedef enum ms_buffer_usage {
 	MS_BufferUsage_DynamicCopy = GL_DYNAMIC_COPY,
 } ms_buffer_usage;
 
+enum ms_attachment {
+	MS_ATTACHMENT_COLOR_N = GL_COLOR_ATTACHMENT0,
+	MS_ATTACHMENT_DEPTH = GL_DEPTH_ATTACHMENT,
+	MS_ATTACHMENT_STENCIL = GL_STENCIL_ATTACHMENT,
+	MS_ATTACHMENT_DEPTH_STENCIL = GL_DEPTH_STENCIL_ATTACHMENT
+};
+
 // }} ENUMS
 
 // {{ TYPES
@@ -229,6 +235,14 @@ typedef struct {
 typedef struct ms_vao {
 	u32 id;
 } ms_vao;
+
+typedef struct ms_framebuffer {
+	u32 id;
+} ms_framebuffer;
+
+typedef struct ms_renderbuffer {
+	u32 id;
+} ms_renderbuffer;
 
 typedef struct {
 	int wrap_t, wrap_s;
@@ -539,47 +553,91 @@ typedef fnptr(void, handle_events_cb, SDL_Event);
 ms_window ms_init_window( int width, int height, const char* title, int flags );
 // update internal library state, like input state etc.
 void ms_update(void);
+// returns true if an application quit event is recieved ( ex. when the
+// close button is pressed on a window )
 bool ms_should_quit(void);
+// set a custom callback to be able to handle SDL events yourself.
 void ms_set_event_callback(handle_events_cb cb);
 
+// convenience function to be able to use hex codes for the
+// background clear colour.
 void ms_clear_colour(u32 hex);
-
+// returns number of drawcalls made this frame.
+// NOTE: make sure to run this function either before you call
+// ms_update, or right after all your drawing's done, as ms_update
+// clears the drawcall count for the next frame.
 int ms_num_drawcalls(void);
 
+// === SHADERS ===
 // reads shader code from provided file paths and compiles and links the shader program.
-// return's a handle to the shader
 ms_shader ms_create_shader( const char * vert_file, const char * frag_file );
+// creates and compiles a shader program with the given source strings.
 ms_shader ms_create_shader_from_source( dstr vert_source, dstr frag_source );
-
+void ms_destroy_shader (ms_shader shader);
+void ms_bind_shader    (ms_shader shader);
+// get uniform location by it's name
 ms_uniform ms_get_uniform(ms_shader, const char* name);
 
-void ms_bind_shader        ( ms_shader shader );
-// UNIMPLEMENTED:
-void ms_shader_set_value   ( ms_shader shader, int loc, const void * data, enum ms_uniform_type val_type );
-// UNIMPLEMENTED:
-void ms_shader_set_value_v ( ms_shader shader, int loc, const void * data, isize count, enum ms_uniform_type val_type );
-void ms_shader_set_mat4   (ms_shader, ms_uniform, mat4s*, bool);
-void ms_shader_set_mat4_v (ms_shader, ms_uniform, mat4s*, isize count, bool);
+// the following are all type-safe wrappers over the ms_shader_set_value functions
+// i've selected just the most common data types for the type-safe wrappers because
+// i don't want to manually write wrappers over all the other types since they don't
+// get used that often anyway.
+void ms_shader_set_int_v   (ms_shader, ms_uniform, int*, isize count);
+void ms_shader_set_float_v (ms_shader, ms_uniform, float*, isize count);
+void ms_shader_set_ivec4   (ms_shader, ms_uniform, ivec4s*);
+void ms_shader_set_ivec4_v (ms_shader, ms_uniform, ivec4s*, isize count);
+void ms_shader_set_vec4    (ms_shader, ms_uniform, vec4s*);
+void ms_shader_set_vec4_v  (ms_shader, ms_uniform, vec4s*, isize count);
 
+void ms_shader_set_value   ( ms_shader, ms_uniform loc, const void * data, ms_uniform_type val_type );
+void ms_shader_set_value_v ( ms_shader, ms_uniform loc, const void * data, isize count, enum ms_uniform_type val_type );
 
+void ms_shader_set_mat4    (ms_shader, ms_uniform, mat4s*, bool);
+void ms_shader_set_mat4_v  (ms_shader, ms_uniform, mat4s*, isize count, bool);
+
+// === TEXTURES ===
 // these functions take in an optional pointer to a sampler
 // passing in NULL uses a default sampler value instead.
 ms_texture ms_create_texture( int h, int w, int infmt, int outfmt, const void* data, const ms_sampler * sampler );
 ms_texture ms_load_texture( const char* path, const ms_sampler * sampler );
 ms_texture ms_load_texture_from_memory( const u8* data, int data_len, const ms_sampler * sampler );
-void bind_texture(ms_texture * texture);
-void bind_texture_slot(ms_texture * texture, uint slot);
-void ms_unload_texture(ms_texture tex);
+void ms_bind_texture(ms_texture texture);
+// UNIMPLEMENTED:
+void ms_bind_texture_slot(ms_texture texture, uint slot);
+void ms_destroy_texture(ms_texture tex);
 
+// === VERTEX ARRAYS AND BUFFERS ===
 ms_vao ms_create_vao(void);
+void ms_destroy_vao(ms_vao vao);
+
+void ms_bind_vao(ms_vao vao);
+void ms_vao_attach_vbo(ms_vao vao, ms_buffer buffer, ms_vertex_layout layout);
+void ms_vao_attach_ebo(ms_vao vao, ms_buffer buffer);
+
 // NOTE:
 // if usage is any of the DYNAMIC_* types then data may be NULL
 ms_buffer ms_create_buffer(ms_buffertype type, ms_buffer_usage usage, isize size, const void * data);
-void ms_vao_attach_vbo(ms_vao *vao, ms_buffer buffer, ms_vertex_layout layout);
-void ms_vao_attach_ebo(ms_vao *vao, ms_buffer buffer);
-
-void ms_destroy_vao(ms_vao vao);
 void ms_destroy_buffer(ms_buffer buffer);
+
+// === FRAMEBUFFERS ===
+ms_framebuffer ms_create_fbo (void);
+void           ms_destroy_fbo(ms_framebuffer);
+void           ms_bind_fbo   (ms_framebuffer);
+// binds 0 (the default screen)
+void           ms_unbind_fbo (void);
+
+// `num` is only used in case the attachment is MS_ATTACHMENT_COLOR_N, otherwise it's ignored
+void ms_fbo_attach_texture (ms_framebuffer, ms_texture, enum ms_attachment slot, int num, int mip_level);
+// attaches a render buffer to a framebuffer
+// `num` is only used in case the attachment is MS_ATTACHMENT_COLOR_N, otherwise it's ignored
+void ms_fbo_attach_rbo     (ms_framebuffer, ms_renderbuffer, enum ms_attachment slot, int num);
+// validates the framebuffer.
+bool           ms_fbo_is_complete    (ms_framebuffer);
+
+// === RENDERBUFFERS ===
+ms_renderbuffer ms_create_rbo (void);
+void            ms_destroy_rbo(ms_renderbuffer);
+
 
 // TODO:
 // implement the instanced versions of these two functions.
@@ -598,9 +656,9 @@ bool ms_is_key_pressed      ( int key );
 // returns true if the key has been released once
 bool ms_is_key_released     ( int key );
 // gets the last key pressed
-// u8   ms_get_key_pressed  ( int key );
+int   ms_get_key_pressed  ( void );
 // gets the last key released
-// u8   ms_get_key_released ( int key );
+int   ms_get_key_released ( void );
 
 // MOUSE FUNCTIONS
 // gets mouse position relative to the active window

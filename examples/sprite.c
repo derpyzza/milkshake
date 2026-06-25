@@ -1,6 +1,8 @@
 #include <milkshake/milkshake.h>
 #include <milkshake/2D.h>
 
+#include "common.h"
+
 #define NUM_SPRITES 32
 #define WINW 800
 #define WINH 800
@@ -17,8 +19,7 @@ main(void) {
   ms_window window = ms_init_window(WINW, WINH, "spritebatch", 0);
   SDL_HideCursor();
 
-  ms_texture tex = ms_load_texture("./res/ball.png",
-     &(ms_sampler){GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST});
+  ms_texture tex = ms_load_texture("./res/ball.png", &PIXEL_SPRITE_SAMPLER);
 
   // use the default sprite shader, defined in `milkshake/2D.h`
   ms_shader shader = ms2D_sprite_shader();

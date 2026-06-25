@@ -10,6 +10,7 @@
 
 #include "glad/glad.h"
 #include <GL/gl.h>
+#include "internal.h"
 #include "milkshake/milkshake.h"
 
 #include "cglm/types-struct.h"
@@ -98,39 +99,64 @@ ms_shader ms_create_shader(
 }
 
 void ms_bind_shader( ms_shader shader ) {
-  // if( __current_shader != shader ) {
+  if( G_core.gl_data.current_shader.id != shader.id ) {
     glUseProgram(shader.id);
-  // }
+  }
 }
 
-void ms_shader_set_value  (ms_shader shader, int loc, const void * data, enum ms_uniform_type val_type) {
+void ms_shader_set_value  (ms_shader shader, ms_uniform loc, const void * data, enum ms_uniform_type val_type) {
   ms_shader_set_value_v(shader, loc, data, 1, val_type);
 }
 
-void ms_shader_set_value_v(ms_shader shader, int loc, const void * data, isize count, enum ms_uniform_type val_type) {
+void ms_shader_set_value_v(ms_shader shader, ms_uniform loc, const void * data, isize count, enum ms_uniform_type val_type) {
+  ms_bind_shader(shader);
   switch(val_type) {
-    case MS_Uniform_Float:  glUniform1fv(loc, count, (float*)data); break;
-    case MS_Uniform_Float2: glUniform2fv(loc, count, (float*)data); break;
-    case MS_Uniform_Float3: glUniform3fv(loc, count, (float*)data); break;
-    case MS_Uniform_Float4: glUniform4fv(loc, count, (float*)data); break;
+    case MS_Uniform_Float:  glUniform1fv(loc.id, count, (float*)data); break;
+    case MS_Uniform_Float2: glUniform2fv(loc.id, count, (float*)data); break;
+    case MS_Uniform_Float3: glUniform3fv(loc.id, count, (float*)data); break;
+    case MS_Uniform_Float4: glUniform4fv(loc.id, count, (float*)data); break;
 
-    case MS_Uniform_Int:  glUniform1iv(loc, count, (int*)data); break;
-    case MS_Uniform_Int2: glUniform2iv(loc, count, (int*)data); break;
-    case MS_Uniform_Int3: glUniform3iv(loc, count, (int*)data); break;
-    case MS_Uniform_Int4: glUniform4iv(loc, count, (int*)data); break;
+    case MS_Uniform_Int:  glUniform1iv(loc.id, count, (int*)data); break;
+    case MS_Uniform_Int2: glUniform2iv(loc.id, count, (int*)data); break;
+    case MS_Uniform_Int3: glUniform3iv(loc.id, count, (int*)data); break;
+    case MS_Uniform_Int4: glUniform4iv(loc.id, count, (int*)data); break;
 
-    case MS_Uniform_Uint:  glUniform1uiv(loc, count, (uint*)data); break;
-    case MS_Uniform_Uint2: glUniform2uiv(loc, count, (uint*)data); break;
-    case MS_Uniform_Uint3: glUniform3uiv(loc, count, (uint*)data); break;
-    case MS_Uniform_Uint4: glUniform4uiv(loc, count, (uint*)data); break;
+    case MS_Uniform_Uint:  glUniform1uiv(loc.id, count, (uint*)data); break;
+    case MS_Uniform_Uint2: glUniform2uiv(loc.id, count, (uint*)data); break;
+    case MS_Uniform_Uint3: glUniform3uiv(loc.id, count, (uint*)data); break;
+    case MS_Uniform_Uint4: glUniform4uiv(loc.id, count, (uint*)data); break;
 
-    case MS_Uniform_Sampler2D: glUniform1iv(loc, count, (int*)data); break;
+    case MS_Uniform_Sampler2D: glUniform1iv(loc.id, count, (int*)data); break;
     default: {
-      dlog_error("unknown uniform type %i for shader [%i]", val_type, shader.id );
+      dlog_error("unknown uniform type %i for shader (%i)", val_type, shader.id);
       break;
     }
     case MS_UNIFORM_COUNT: break;
   }
+}
+
+void ms_shader_set_float_v (ms_shader shader, ms_uniform loc, float* data, isize count) {
+  ms_shader_set_value_v(shader, loc, (const void*)data, MS_Uniform_Float, count);
+}
+
+void ms_shader_set_int_v (ms_shader shader, ms_uniform loc, int* data, isize count) {
+  ms_shader_set_value_v(shader, loc, (const void*)data, MS_Uniform_Int, count);
+}
+
+void ms_shader_set_ivec4 (ms_shader shader, ms_uniform loc , ivec4s* data) {
+  ms_shader_set_value_v(shader, loc, (const void*)data, MS_Uniform_Int4, 1);
+}
+
+void ms_shader_set_ivec4_v (ms_shader shader, ms_uniform loc , ivec4s* data, isize count) {
+  ms_shader_set_value_v(shader, loc, (const void*)data, MS_Uniform_Int4, count);
+}
+
+void ms_shader_set_vec4 (ms_shader shader, ms_uniform loc , vec4s* data) {
+  ms_shader_set_value_v(shader, loc, (const void*)data, MS_Uniform_Float4, 1);
+}
+
+void ms_shader_set_vec4_v (ms_shader shader, ms_uniform loc , vec4s* data, isize count) {
+  ms_shader_set_value_v(shader, loc, (const void*)data, MS_Uniform_Float4, count);
 }
 
 void ms_shader_set_mat4(ms_shader shader, ms_uniform unif, mat4s *mat, bool transpose) {
@@ -138,5 +164,6 @@ void ms_shader_set_mat4(ms_shader shader, ms_uniform unif, mat4s *mat, bool tran
 }
 
 void ms_shader_set_mat4_v(ms_shader shader, ms_uniform unif, mat4s * mat, isize count, bool transpose) {
+  ms_bind_shader(shader);
   glUniformMatrix4fv(unif.id, count, transpose, (float*)mat->raw);
 }

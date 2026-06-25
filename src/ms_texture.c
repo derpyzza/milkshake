@@ -12,8 +12,19 @@
 #include <GL/gl.h>
 #include <libderp/derp.h>
 #include <milkshake/milkshake.h>
+#include "internal.h"
 #include "stb_image.h"
 #include <math.h>
+
+void ms_destroy_texture(ms_texture tex) {
+	glDeleteTextures(1, &tex.id);
+}
+
+void ms_bind_texture(ms_texture texture) {
+	if(G_core.gl_data.current_texture.id != texture.id) {
+		glBindTexture(GL_TEXTURE_2D, texture.id);
+	}
+}
 
 void image_get_fmt(int format, int *infmt, int* outfmt) {
 	switch (format) {

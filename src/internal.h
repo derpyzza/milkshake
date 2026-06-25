@@ -53,6 +53,13 @@ struct _core {
     int prev_num_draw_calls; // number of draw calls made in the previous frame
   } stats;
 
+  struct {
+    ms_vao         current_vao;
+    ms_framebuffer current_fbo;
+    ms_texture     current_texture;
+    ms_shader      current_shader;
+  } gl_data;
+
   bool should_quit;
 };
 

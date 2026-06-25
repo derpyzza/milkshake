@@ -91,8 +91,8 @@ main(void) {
       , sizeof(indices)
       , indices
     );
-  ms_vao_attach_vbo(&cube, vert_buf, MS_VERTLAYOUT_POSCOL);  
-  ms_vao_attach_ebo(&cube, index_buf);
+  ms_vao_attach_vbo(cube, vert_buf, MS_VERTLAYOUT_POSCOL);  
+  ms_vao_attach_ebo(cube, index_buf);
 
   mat4s model = GLMS_MAT4_IDENTITY
       , view = glms_lookat((vec3s){{0, 0, -5}}, (vec3s){{0, 0, -1}}, (vec3s){{0, 1, 0}})

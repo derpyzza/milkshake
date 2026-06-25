@@ -26,6 +26,14 @@ ms_is_key_down(int key) {
   return G_core.keyboard.keystate[key] && G_core.keyboard.prev_state[key];
 }
 
+int ms_get_key_pressed  ( void ) {
+  return G_core.keyboard.last_pressed;
+}
+
+int ms_get_key_released ( void ) {
+  return G_core.keyboard.last_released;
+}
+
 bool
 ms_is_mouse_pressed(u8 key) {
   return

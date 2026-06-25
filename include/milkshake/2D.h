@@ -65,6 +65,7 @@ typedef struct {
   vec2s tex_pos;  // texture pos on atlas, in pixels 
   vec2s tex_size; // texture size on atlas, in pixels
 
+  bool flip_x, flip_y;
   float rotation; // angle in degrees
 
   u32 colour;     // optional tint

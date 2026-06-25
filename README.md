@@ -50,18 +50,21 @@ contents:
 planned:
 - text renderer
 - simple tilemap renderer
+- 2D renderer:
+  - line rendering
+  - curve rendering ( bezier )
+  - quads
+  - circles
+  - regular polygons with arbitrary number of sides ( maybe capped at like 10 or 12? )
+  - textured versions of all those
+  - pixel/point rendering?
+  
 - 3D.h: 3D rendering stuff:
   - gltf model loading
   - skeletal animation
   - mesh
+  - maybe an opengl 1.1 immediate-mode style api?
 - defaults/
-  - 2D.h: handy defaults for 2D:
-    - default 2D shapes rendering:
-      - line rendering
-      - curve rendering ( bezier )
-      - rectangles
-      - circles
-      - regular polygons with arbitrary number of sides ( maybe capped at like 10 or 12? )
   - 3D.h: handy defaults for 3D:
     - default materials and shaders:
       - toon

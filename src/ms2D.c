@@ -10,6 +10,7 @@
 
 #include "glad/glad.h"
 #include "cglm/struct/vec2.h"
+#include "internal.h"
 #include "milkshake/milkshake.h"
 #include <math.h>
 #include <milkshake/2D.h>
@@ -56,8 +57,8 @@ ms2D_create_spritebatch(ms_texture texture, isize num_sprites) {
     , indices
   );
 
-  ms_vao_attach_vbo(&out.vao, out.vbo, MS_VERTLAYOUT_SPRITE);
-  ms_vao_attach_ebo(&out.vao, out.ebo);
+  ms_vao_attach_vbo(out.vao, out.vbo, MS_VERTLAYOUT_SPRITE);
+  ms_vao_attach_ebo(out.vao, out.ebo);
 
   return out;
 }
@@ -78,6 +79,9 @@ ms2D_sprite ms2D_create_sprite(vec2s pos, vec2s size, vec2s tex_pos, vec2s tex_s
 
   out.tex_pos = tex_pos;
   out.tex_size = tex_size;
+
+  out.flip_x = false;
+  out.flip_y = false;
 
   out.origin = (vec2s){{0.5, 0.5}};
   out.colour = 0xFFFFFFFF;
@@ -122,11 +126,21 @@ void ms2D_spritebatch_submit(ms2D_spritebatch * batch, ms2D_sprite sprite) {
     batch->current->pos.x = rot_x + sprite.pos.x;
     batch->current->pos.y = rot_y + sprite.pos.y;
 
-    float t_u = sprite.tex_pos.x + toffsets[i].x;
-    float t_y = sprite.tex_pos.y + toffsets[i].y;
+    float t_u;
+    if(sprite.flip_x) {
+      t_u = sprite.tex_pos.x + (sprite.tex_size.x - toffsets[i].x);
+    } else {
+      t_u = sprite.tex_pos.x + toffsets[i].x;
+    }
+    float t_v;
+    if(sprite.flip_y) {
+      t_v = sprite.tex_pos.y + (sprite.tex_size.y - toffsets[i].y);
+    } else {
+      t_v = sprite.tex_pos.y + toffsets[i].y;
+    }
 
-    batch->current->uv.x = t_u / batch->texture.width;
-    batch->current->uv.y = t_y / batch->texture.height;
+    batch->current->uv.x = t_u / batch->texture.width ;
+    batch->current->uv.y = t_v / batch->texture.height;
     
     batch->current->col = sprite.colour;
 
@@ -137,6 +151,9 @@ void ms2D_spritebatch_submit(ms2D_spritebatch * batch, ms2D_sprite sprite) {
 }
 
 void ms2D_spritebatch_flush(ms2D_spritebatch * batch) {
+  if(G_core.gl_data.current_texture.id != batch->texture.id) {
+    ms_bind_texture(batch->texture);
+  }
   glBindBuffer(GL_ARRAY_BUFFER, batch->vbo.id); 
   glBufferSubData(
       GL_ARRAY_BUFFER, 
