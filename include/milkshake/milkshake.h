@@ -16,7 +16,6 @@
 #include "glad/glad.h"
 #include <GL/gl.h>
 
-#include "input_enums.h"
 
 // NOTE:
 // 	> maybe instead of having fixed length name strings i could instead have a
@@ -77,6 +76,8 @@
 #ifdef __cplusplus
 	extern "C" {
 #endif
+
+#include "input_enums.h"
 
 enum ms_window_flags {
 	MS_WindowFlag_Resizable    = 1,
@@ -598,7 +599,7 @@ void ms_shader_set_mat4_v  (ms_shader, ms_uniform, mat4s*, isize count, bool);
 // === TEXTURES ===
 // these functions take in an optional pointer to a sampler
 // passing in NULL uses a default sampler value instead.
-ms_texture ms_create_texture( int h, int w, int infmt, int outfmt, const void* data, const ms_sampler * sampler );
+ms_texture ms_create_texture( int w, int h, int infmt, int outfmt, const void* data, const ms_sampler * sampler );
 ms_texture ms_load_texture( const char* path, const ms_sampler * sampler );
 ms_texture ms_load_texture_from_memory( const u8* data, int data_len, const ms_sampler * sampler );
 void ms_bind_texture(ms_texture texture);

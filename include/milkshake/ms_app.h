@@ -7,6 +7,10 @@
   #include <emscripten.h>
 #endif
 
+#ifdef __cplusplus
+	extern "C" {
+#endif
+
 typedef struct {
   fnptr(void, init, void);
   fnptr(void, frame, void);
@@ -69,4 +73,8 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
+#endif
+
+#ifdef __cplusplus
+	}
 #endif

@@ -40,8 +40,8 @@ void image_get_fmt(int format, int *infmt, int* outfmt) {
 
 ms_texture
 ms_create_texture(
-  int h,
   int w,
+  int h,
   int infmt,
   int outfmt,
   const void* data,

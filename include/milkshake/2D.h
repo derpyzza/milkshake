@@ -12,6 +12,10 @@
 #pragma once
 #include <milkshake/milkshake.h>
 
+#ifdef __cplusplus
+  extern "C" {
+#endif
+
 typedef struct sprite_vertex {
   vec2s pos;
   vec2s uv;
@@ -133,3 +137,7 @@ static inline ms_shader ms2D_sprite_shader(void) {
 
   return ms_create_shader_from_source(vert, frag);
 }
+
+#ifdef __cplusplus
+	}
+#endif
