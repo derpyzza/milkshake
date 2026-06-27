@@ -26,7 +26,7 @@ ms2D_create_spritebatch(ms_texture texture, isize num_sprites) {
   out.capacity = num_sprites;
 
 
-  out.verts = d_alloc(verts_size);
+  out.verts = (sprite_vertex*)d_alloc(verts_size);
   out.current = out.verts;
 
   out.vao = ms_create_vao();
