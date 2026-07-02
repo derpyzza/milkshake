@@ -92,8 +92,12 @@ debug: CFLAGS += -ggdb -O0 -DDEBUG=1
 # debug: CFLAGS += -fsanitize=address,undefined
 debug: $(PROG)
 
-release: CFLAGS += -O2 -DNDEBUG
-release: clean $(PROG)
+release: CFLAGS += -O2 -DDEBUG=0
+# release: clean $(PROG)
+
+install: release
+	cp -r $(PROG) /usr/local/lib/
+	cp -r include/milkshake /usr/local/include/milkshake/
 
 $(PROG): $(ALL_OBJS)
 	@mkdir -p $(@D)
