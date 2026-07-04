@@ -39,7 +39,7 @@ void init(void) {
   state.shader = ms_create_shader_from_source(vert, frag);
   state.vao = ms_create_vao();
   state.vbo = ms_create_buffer(MS_BufferType_Vertex , MS_BufferUsage_StaticDraw , sizeof(verts) , verts);
-  ms_vao_attach_vbo(&state.vao, state.vbo, MS_VERTLAYOUT_POSCOL);  
+  ms_vao_attach_vbo(state.vao, state.vbo, MS_VERTLAYOUT_POSCOL);  
 }
 
 void gameloop(void) {

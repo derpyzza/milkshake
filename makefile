@@ -3,9 +3,9 @@ ANDROID_ARCH ?= aarch64
 ANDROID_API  ?= 21
 
 # Per-platform output dirs so all three can coexist without cleaning
-OBJ       := obj/$(PLATFORM)
+OBJ       := ./obj/$(PLATFORM)
 PROG_NAME := libmilkshake
-PROG      := out/$(PLATFORM)/$(PROG_NAME).a
+PROG      := ./out/$(PLATFORM)/$(PROG_NAME).a
 
 ifeq ($(PLATFORM), linux)
     CC          := clang
@@ -95,7 +95,8 @@ debug: $(PROG)
 release: CFLAGS += -O2 -DDEBUG=0
 # release: clean $(PROG)
 
-install: release
+install:
+	@test -f $(PROG) || (echo "Error: Build the project first using 'make release' before installing." && exit 1)
 	cp -r $(PROG) /usr/local/lib/
 	cp -r include/milkshake /usr/local/include/milkshake/
 

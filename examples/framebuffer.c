@@ -1,5 +1,5 @@
-#include <milkshake/milkshake.h>
-#include <milkshake/2D.h>
+#include "milkshake/milkshake.h"
+#include "milkshake/ms2d.h"
 
 #include "common.h"
 
@@ -66,7 +66,7 @@ main(void) {
 
   ms_texture tex = ms_load_texture("./res/ball.png", &PIXEL_SPRITE_SAMPLER);
   // use the default sprite shader, defined in `milkshake/2D.h`
-  ms_shader shader = ms2D_sprite_shader();
+  ms_shader shader = ms2d_sprite_shader();
   ms_uniform
       u_proj_loc = ms_get_uniform(shader, "proj")
     , u_view_loc = ms_get_uniform(shader, "view");

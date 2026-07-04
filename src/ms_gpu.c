@@ -8,6 +8,17 @@
  * no LLMS were used to write the code in this library.
 */ 
 
+// ms_gpu.c:
+// implements a simple wrapper over opengl functions
+// the idea is to provide functions that wrap over common tedious opengl
+// functionality, though you may directly use the proper opengl functions
+// if you really want to.
+//
+// in the future i'd probably like to implement other backends to this as well
+// mainly a software renderer and *maybe* vulkan? dunno.
+// though i'd have to change up a lot of the api if i did that, as currently
+// it's extremely opengl-coded.
+
 #include "glad/glad.h"
 #include "milkshake/milkshake.h"
 #include "internal.h"

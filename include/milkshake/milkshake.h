@@ -529,6 +529,14 @@ static inline vec4s ms_col_from_hex(u32 hex){
   }};
 }
 
+#define ms_hex_to_bytes(hex) \
+	{ \
+		hex >> 24 & 0xFF, \
+		hex >> 16 & 0xFF, \
+		hex >>  8 & 0xFF, \
+		hex       & 0xFF, \
+	}
+
 static inline u32 ms_col_to_hex(vec4s c) {
 	c = glms_vec4_normalize(c);
   return ((uint)c.x << 24) & ((uint)c.y << 16) & ((uint)c.z << 8) & (uint)c.w;
