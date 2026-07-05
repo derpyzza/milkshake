@@ -98,6 +98,7 @@ release: CFLAGS += -O2 -DDEBUG=0
 install:
 	@test -f $(PROG) || (echo "Error: Build the project first using 'make release' before installing." && exit 1)
 	cp -r $(PROG) /usr/local/lib/
+	mkdir -p /usr/local/include/milkshake/
 	cp -r include/milkshake /usr/local/include/milkshake/
 
 $(PROG): $(ALL_OBJS)

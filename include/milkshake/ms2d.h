@@ -17,6 +17,10 @@
 //     currently they use a static bool toggle to make sure not to create
 //     the shader/texture more than once, but is there a better way to do
 //     this?
+//   > for the default texture, i could just load it when the main milkshake
+//     library loads and keep it around for the lifetime of the app. it's a
+//     tiny 1px texture, so it's not likely to eat up too much ram, plus it'll
+//     be handy for a lot more than just a 2D shape renderer.
 // TODO:
 //   > deprecate the spritebatch :(
 
@@ -152,8 +156,21 @@ void ms2d_rectr(f32 x, f32 y, f32 w, f32 h, f32 rot, uint colour);
 void ms2d_rectv(vec2s pos, vec2s size, f32 rot, uint colour);
 void ms2d_rectpro(ms2d_rectangle r, vec2s origin, f32 rot, uint colour);
 
-void ms2d_texrect(ms_texture tex, ms2d_rectangle src, vec2s pos, uint colour);
-void ms2d_texrectpro(ms_texture tex, ms2d_rectangle src, ms2d_rectangle dest, vec2s origin, f32 rot, uint colour);
+// draw part of a texture as a rectangle
+void ms2d_texrect(ms_texture tex, ms2d_rectangle src, ms2d_rectangle dest, uint colour);
+void ms2d_texrectr(ms_texture tex, ms2d_rectangle src, ms2d_rectangle dest, f32 rot, uint colour);
+// draw entire texture as a rect
+void ms2d_texrectw(ms_texture tex, vec2s pos, uint colour, bool flip_x, bool flip_y);
+void ms2d_texrectpro(
+  ms_texture tex,
+  ms2d_rectangle src,
+  ms2d_rectangle dest,
+  vec2s origin,
+  f32 rot,
+  uint colour,
+  bool flip_x,
+  bool flip_y
+);
 
 void ms2d_circ     (f32 x, f32 y, f32 r, uint colour);
 void ms2d_circv    (vec2s pos, f32 r, uint colour);
@@ -163,8 +180,6 @@ void ms2d_circpro  (ms2d_circle c, f32 r, int segments, uint colour);
 // draw circle sector
 void ms2d_sec  (f32 x, f32 y, f32 r, f32 start_angle, f32 end_angle, uint colour);
 void ms2d_secv (vec2s c, f32 r, f32 start_angle, f32 end_angle, uint colour);
-
-void ms2d_tri (vec2s a, vec2s b, vec2s c, uint colour);
 
 // NOTE:
 // is this actually useful??

@@ -131,6 +131,115 @@ void ms2d_rect(f32 x, f32 y, f32 w, f32 h, uint colour) {
   ms2d_poly_submit(MS2D_QUADS, ms2d_default_texture(), verts, 4);
 }
 
+void ms2d_rectr(f32 x, f32 y, f32 w, f32 h, f32 rot, uint colour) {
+  ms2d_rectangle r = { x, y, w, h };
+  ms2d_rectpro(r, GLMS_VEC2_ZERO, rot, colour);
+}
+
+void ms2d_rectv(vec2s pos, vec2s size, f32 rot, uint colour) {
+  ms2d_rectangle r = { pos.x, pos.y, size.x, size.y };
+  ms2d_rectpro(r, GLMS_VEC2_ZERO, rot, colour);
+}
+
+void ms2d_rectpro(ms2d_rectangle r, vec2s origin, f32 rot, uint colour) {
+  ms2d_rectangle src = { 0, 0, r.w, r.h };
+  ms2d_texrectpro(ms2d_default_texture(), src, r, origin, rot, colour, false, false);
+}
+
+void ms2d_texrect(ms_texture tex, ms2d_rectangle src, ms2d_rectangle dest, uint colour) {
+  ms2d_texrectpro(tex, src, dest, GLMS_VEC2_ZERO, 0.0f, colour, false, false);
+}
+
+void ms2d_texrectr(ms_texture tex, ms2d_rectangle src, ms2d_rectangle dest, f32 rot, uint colour) {
+  ms2d_texrectpro(tex, src, dest, GLMS_VEC2_ZERO, rot, colour, false, false);
+}
+
+void ms2d_texrectw(ms_texture tex, vec2s pos, uint colour, bool flip_x, bool flip_y) {
+  ms2d_rectangle src = { 0, 0, tex.width, tex.height };
+  ms2d_rectangle dest = { pos.x, pos.y, tex.width, tex.height };
+  ms2d_texrectpro(tex, src, dest, GLMS_VEC2_ZERO, 0.0f, colour, flip_x, flip_y);
+}
+
+void ms2d_texrectpro(ms_texture tex, ms2d_rectangle src, ms2d_rectangle dest, vec2s origin, f32 rot, uint colour, bool flip_x, bool flip_y) {
+
+  sprite_vertex verts[4] = { 0 };
+
+  vec2s voffsets[4] = {
+    {{     0,      0}},
+    {{dest.w,      0}},
+    {{dest.w, dest.h}},
+    {{     0, dest.h}}
+  };
+
+  vec2s toffsets[4] = {
+    {{    0,     0}},
+    {{src.w,     0}},
+    {{src.w, src.h}},
+    {{    0, src.h}}
+  };
+
+  vec2s norm_origin = glms_vec2_scale(glms_vec2_add(origin, GLMS_VEC2_ONE), 0.5);
+  vec2s origin_offset = glms_vec2_mul(norm_origin, (vec2s){{dest.w, dest.h}});
+
+  float rad = glm_rad(rot);
+  float cosa = cosf(rad);
+  float sina = sinf(rad);
+  u8 bytes[4] = ms_hex_to_bytes(colour);
+
+  for(int i = 0; i < 4; i++) {
+    float local_x = voffsets[i].x - origin_offset.x;
+    float local_y = voffsets[i].y - origin_offset.y;
+
+    // rotated coordinates in local-space ( pixels )
+    float rot_x = local_x * cosa - local_y * sina;
+    float rot_y = local_x * sina + local_y * cosa;
+
+    // final coordinates in world-space ( pixels )
+    verts[i].pos.x = rot_x + dest.x;
+    verts[i].pos.y = rot_y + dest.y;
+
+    float t_u;
+    if(flip_x) {
+      t_u = src.x + (src.w - toffsets[i].x);
+    } else {
+      t_u = src.x + toffsets[i].x;
+    }
+    float t_v;
+    if(flip_y) {
+      t_v = src.y + (src.h - toffsets[i].y);
+    } else {
+      t_v = src.y + toffsets[i].y;
+    }
+
+    verts[i].uv.x = t_u / tex.width ;
+    verts[i].uv.y = t_v / tex.height;
+    
+    memcpy(verts[i].col, bytes, sizeof(u8)*4);
+  }
+
+  ms2d_poly_submit(MS2D_QUADS, tex, verts, 4);
+}
+
+void ms2d_colquad  (vec2s a, vec2s b, vec2s c, vec2s d, uint colour) {
+  ms2d_quad q = { a, b, c, d };
+  ms2d_texquad(ms2d_default_texture(), q, colour);
+}
+
+void ms2d_colquadq (ms2d_quad quad, uint colour) {
+  ms2d_texquad(ms2d_default_texture(), quad, colour);
+}
+
+void ms2d_texquad  (ms_texture tex, ms2d_quad q, uint colour) {
+  sprite_vertex v[4] = {
+    { {{q.a.x, q.a.y}}, {{0, 0}}, ms_hex_to_bytes(colour) },
+    { {{q.b.x, q.b.y}}, {{1, 0}}, ms_hex_to_bytes(colour) },
+    { {{q.c.x, q.c.y}}, {{1, 1}}, ms_hex_to_bytes(colour) },
+    { {{q.d.x, q.d.y}}, {{0, 1}}, ms_hex_to_bytes(colour) }
+  };
+
+  ms2d_poly_submit(MS2D_QUADS, tex, v, 4);
+}
+
 void ms2d_circ(f32 x, f32 y, f32 r, uint colour) {
   const int num_quads = 9;
   const int total_verts = num_quads * 4;
