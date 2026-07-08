@@ -7,12 +7,17 @@
 #define WINW 800
 #define WINH 800
 
-// tiny spritebatch rendering example
-// sets up a basic spritebatch ( defined in `milkshake/2D.h` and renders a bunch of
+// tiny batch sprite rendering example
+// sets up a basic render batch ( defined in `milkshake/ms2d.h` and renders a bunch of
 // textured sprites using it randomly.
 //
 // press 'r' to reposition the sprites randomly.
 // hover over a sprite to select, hold lmb to drag it around.
+
+typedef struct {
+  ms2d_rectangle src, dest;
+  uint colour;
+} sprite;
 
 int
 main(void) {
@@ -30,7 +35,8 @@ main(void) {
     ;
 
   // NUM_SPRITES + 1 for the custom cursor sprite
-  ms2D_spritebatch batch = ms2D_create_spritebatch(tex, NUM_SPRITES + 1);
+  ms2d_renderbatch batch = ms2d_new_renderbatch();
+  ms2d_bind_renderbatch(&batch);
 
   mat4s proj = glms_ortho(
     0
@@ -49,7 +55,7 @@ main(void) {
   float delta = 0;
   
   // init sprites array
-  ms2D_sprite sprites[NUM_SPRITES] = { 0 };
+  sprite sprites[NUM_SPRITES] = { 0 };
   for ( int i = 0; i < NUM_SPRITES; i++ ) {
     // spawn sprites in a 600x600 region in the middle of the screen
     // the +100 is to offset it to the middle of the screen ((WINW-600)/2)
@@ -58,12 +64,11 @@ main(void) {
     // uv offset to randomly pick a sprite
     float offset = SDL_rand(2);
 
-    sprites[i] = ms2D_create_sprite(
-      (vec2s){{x, y}},
-      ssize,
-      (vec2s){{offset * 64, 0}},
-      ssize
-    );
+    sprites[i] = (sprite){
+      {offset * 64, 0, ssize.x, ssize.y},
+      {x, y, ssize.x, ssize.y},
+      0xFFFFFFFF
+    };
   }
 
 	glEnable(GL_BLEND);
@@ -71,10 +76,10 @@ main(void) {
 
   vec2s mpos = ms_mouse_pos();
 
-  ms2D_sprite cursor = ms2D_create_sprite(mpos, (vec2s){{32, 32}}, (vec2s){{0, 64}}, (vec2s){{32, 32}});
+  ms2d_sprite cursor = ms2d_create_sprite(mpos, (vec2s){{32, 32}}, (vec2s){{0, 64}}, (vec2s){{32, 32}});
   cursor.origin = (vec2s){{0, 0}};
 
-  ms2D_sprite * last_sprite = NULL;
+  sprite * last_sprite = NULL;
   bool grabbed = false;
   bool overlap = false;
 
@@ -101,31 +106,15 @@ main(void) {
       for(int i = 0; i < NUM_SPRITES; i++ ) {
         float x = SDL_rand(600) + 100;
         float y = SDL_rand(600) + 100;
-        sprites[i].pos.x = x;
-        sprites[i].pos.y = y;
+        sprites[i].dest.x = x;
+        sprites[i].dest.y = y;
       }
     }
 
     if(grabbed) {
-      last_sprite->pos = mpos;
+      last_sprite->dest.x = mpos.x;
+      last_sprite->dest.y = mpos.y;
     }
-
-    for(int i = 0; i < NUM_SPRITES; i++ ) {
-      ms2D_sprite spr = sprites[i];
-      if(
-        mpos.x > spr.pos.x - spr.size.x/2 && mpos.x < spr.pos.x + spr.size.x/2
-        &&
-        mpos.y > spr.pos.y - spr.size.y/2 && mpos.y < spr.pos.y + spr.size.y/2
-      ) {
-        spr.colour = 0xFF8888FF;
-        overlap = true;
-        if(!grabbed) last_sprite = &sprites[i];
-      }
-      ms2D_spritebatch_submit(&batch, spr);
-    }
-
-    cursor.pos = mpos;
-    ms2D_spritebatch_submit(&batch, cursor);
 
     glViewport(0, 0, WINW, WINH);
     ms_clear_colour(0x140e2cff);
@@ -133,10 +122,24 @@ main(void) {
       ms_bind_shader(shader);
       ms_shader_set_mat4(shader, u_proj_loc, &proj, false);
       ms_shader_set_mat4(shader, u_view_loc, &GLMS_MAT4_IDENTITY, false);
-      glBindTexture(GL_TEXTURE_2D, tex.id);
 
-      ms2D_spritebatch_flush(&batch);
+      for(int i = 0; i < NUM_SPRITES; i++ ) {
+        sprite spr = sprites[i];
+        if(
+          mpos.x > spr.dest.x - spr.dest.w/2 && mpos.x < spr.dest.x + spr.dest.w/2
+          &&
+          mpos.y > spr.dest.y - spr.dest.h/2 && mpos.y < spr.dest.y + spr.dest.h/2
+        ) {
+          spr.colour = 0xFF8888FF;
+          overlap = true;
+          if(!grabbed) last_sprite = &sprites[i];
+        }
+        ms2d_texrect(tex, spr.src, spr.dest, spr.colour);
+      }
 
+      // draw cursor
+      ms2d_texrect(tex, (ms2d_rectangle){0, 64, 32, 32}, (ms2d_rectangle){mpos.x, mpos.y, 32, 32}, 0xFFFFFFFF);
+      ms2d_flush();
     SDL_GL_SwapWindow(window.handle);
 
     // update the window title once per second.

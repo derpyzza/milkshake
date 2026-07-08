@@ -122,7 +122,7 @@ typedef struct {
   float rotation; // angle in degrees
 
   u32 colour;     // optional tint
-} ms2D_sprite;
+} ms2d_sprite;
 
 
 // returns a new renderbatch with a default size for num_quads and num_drawcalls
@@ -175,17 +175,18 @@ void ms2d_texrectpro(
 void ms2d_circ     (f32 x, f32 y, f32 r, uint colour);
 void ms2d_circv    (vec2s pos, f32 r, uint colour);
 void ms2d_circc    (ms2d_circle c, uint colour);
-void ms2d_circpro  (ms2d_circle c, f32 r, int segments, uint colour);
 
 // draw circle sector
-void ms2d_sec  (f32 x, f32 y, f32 r, f32 start_angle, f32 end_angle, uint colour);
-void ms2d_secv (vec2s c, f32 r, f32 start_angle, f32 end_angle, uint colour);
+void ms2d_circ_sec  (f32 x, f32 y, f32 r, f32 start_angle, f32 end_angle, int segments, uint colour);
+// void ms2d_secv (vec2s c, f32 start_angle, f32 end_angle, uint colour);
 
 // NOTE:
 // is this actually useful??
 void ms2d_colquad  (vec2s a, vec2s b, vec2s c, vec2s d, uint colour);
 void ms2d_colquadq (ms2d_quad quad, uint colour);
 void ms2d_texquad  (ms_texture tex, ms2d_quad quad, uint colour);
+
+ms2d_sprite ms2d_create_sprite(vec2s pos, vec2s size, vec2s tex_pos, vec2s tex_size);
 
 // submit a polygon to the batch
 void ms2d_poly_submit(
@@ -226,39 +227,7 @@ static const ms_vertex_layout MS2D_VERTLAYOUT_SPRITE = {
   }
 };
 
-
-typedef struct ms2D_spritebatch {
-  // NOTE:
-  // maybe in the future i could make a stronger spritebatch system where each
-  // sprite batch can take in multiple texture draw calls and then automatically
-  // sorts the draw calls by texture or whatnot, but for now, each spritebatch
-  // only works with a single texture atlas at a time ( though one that can be
-  // changed at runtime if you wish ). the user will simply have to manually
-  // organize their drawcalls for now. the spritebatch exists solely to reduce
-  // draw calls, and not much else.
-  ms_texture texture;
-  isize
-    capacity // total number of sprites this batch can render at once before needing to flush
-  , size;    // current number of requested sprite draws
-
-  sprite_vertex
-    *verts; // size: capacity * 4
-  sprite_vertex *current;
-
-  ms_vao vao;
-  ms_buffer vbo, ebo;
-} ms2D_spritebatch;
-
-ms2D_spritebatch ms2D_create_spritebatch(ms_texture texture, isize num_sprites);
-void ms2D_destroy_spritebatch(ms2D_spritebatch * sprite_batch);
-
-ms2D_sprite ms2D_create_sprite(vec2s pos, vec2s size, vec2s tex_pos, vec2s tex_size);
-
-void ms2D_spritebatch_submit(ms2D_spritebatch * batch, ms2D_sprite sprite);
-void ms2D_spritebatch_swap_texture(ms2D_spritebatch * batch, ms_texture tex);
-void ms2D_spritebatch_flush(ms2D_spritebatch * batch);
-
-static inline ms_shader ms2d_sprite_shader(void) {
+static ms_shader ms2d_sprite_shader(void) {
   const dstr vert = dstr(
     "#version 330 core\n"
     "layout (location=0) in vec2 a_pos;"
