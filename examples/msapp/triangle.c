@@ -44,7 +44,7 @@ void init(void) {
 
 void gameloop(void) {
   if(ms_is_key_pressed(Key_Escape)) {
-    ms_app_quit();
+    msapp_quit();
   }
 
   ms_clear_colour(0x98a96dFF);

@@ -5,3 +5,4 @@ a.out
 obj/
 out/
 test.c
+compile_flags.txt
