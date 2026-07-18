@@ -96,7 +96,7 @@ ms_buffer ms_create_buffer(ms_buffertype type, ms_buffer_usage usage, isize size
 	glBufferData(type, size, data, usage);
 
 	// unbind buffer, uhhhhh just because
-	glBindBuffer(type, 0);
+	// glBindBuffer(type, 0);
 	return out;
 }
 
@@ -126,6 +126,7 @@ void ms_vao_attach_vbo(ms_vao vao, ms_buffer buffer, ms_vertex_layout layout) {
 void ms_vao_attach_ebo(ms_vao vao, ms_buffer buffer) {
 	ms_bind_vao(vao);
 	glBindBuffer(buffer.type, buffer.id);
+	glBindVertexArray(0);
 }
 
 // FRAMEBUFFERS {{

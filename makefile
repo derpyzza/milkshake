@@ -92,8 +92,8 @@ debug: CFLAGS += -ggdb -O0 -DDEBUG=1
 # debug: CFLAGS += -fsanitize=address,undefined
 debug: $(PROG)
 
-release: CFLAGS += -O2 -DDEBUG=0
-# release: clean $(PROG)
+release: CFLAGS += -O2 -DDEBUG=0 -g -ggdb
+release: $(PROG)
 
 install:
 	@test -f $(PROG) || (echo "Error: Build the project first using 'make release' before installing." && exit 1)
