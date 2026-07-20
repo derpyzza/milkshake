@@ -15,7 +15,8 @@
 // hover over a sprite to select, hold lmb to drag it around.
 
 typedef struct {
-  ms2d_rectangle src, dest;
+  ms2d_rectangle src;
+  vec2s pos;
   uint colour;
 } sprite;
 
@@ -24,7 +25,7 @@ main(void) {
   ms_window window = ms_init_window(WINW, WINH, "spritebatch", 0);
   SDL_HideCursor();
 
-  ms_texture tex = ms_load_texture("./res/ball.png", &PIXEL_SPRITE_SAMPLER);
+  ms_texture tex = ms_load_texture("./examples/res/ball.png", &PIXEL_SPRITE_SAMPLER);
 
   // use the default sprite shader, defined in `milkshake/2D.h`
   ms_shader shader = ms2d_sprite_shader();
@@ -47,7 +48,7 @@ main(void) {
     , 10
   );
   
-  vec2s ssize = {{64, 64}};
+  vec2s ball_size = {{64, 64}};
 
   // timing stuff, used to change the window title once every second.
   u64 now = 0, last_now = 0;
@@ -65,8 +66,10 @@ main(void) {
     float offset = SDL_rand(2);
 
     sprites[i] = (sprite){
-      {offset * 64, 0, ssize.x, ssize.y},
-      {x, y, ssize.x, ssize.y},
+      // texture src rect
+      {offset * 64, 0, ball_size.x, ball_size.y},
+      // pos
+      {{x, y}},
       0xFFFFFFFF
     };
   }
@@ -76,8 +79,8 @@ main(void) {
 
   vec2s mpos = ms_mouse_pos();
 
-  ms2d_sprite cursor = ms2d_create_sprite(mpos, (vec2s){{32, 32}}, (vec2s){{0, 64}}, (vec2s){{32, 32}});
-  cursor.origin = (vec2s){{0, 0}};
+  ms2d_rectangle cursor_tex = {0, 64, 32, 32};
+  vec2s          cursor_size = (vec2s){{32, 32}};
 
   sprite * last_sprite = NULL;
   bool grabbed = false;
@@ -93,7 +96,7 @@ main(void) {
     ms_update();
     if(ms_is_key_pressed(Key_Escape) || ms_should_quit()) quit = true;
 
-    if(overlap && ms_is_mouse_down(SDL_BUTTON_LEFT)) {
+    if( (overlap && ms_is_mouse_down(SDL_BUTTON_LEFT)) || (grabbed && ms_is_mouse_down(SDL_BUTTON_LEFT)) ) {
       grabbed = true;
     } else {
       grabbed = false;
@@ -106,14 +109,14 @@ main(void) {
       for(int i = 0; i < NUM_SPRITES; i++ ) {
         float x = SDL_rand(600) + 100;
         float y = SDL_rand(600) + 100;
-        sprites[i].dest.x = x;
-        sprites[i].dest.y = y;
+        sprites[i].pos.x = x;
+        sprites[i].pos.y = y;
       }
     }
 
     if(grabbed) {
-      last_sprite->dest.x = mpos.x;
-      last_sprite->dest.y = mpos.y;
+      last_sprite->pos.x += ms_mouse_delta_x();
+      last_sprite->pos.y += ms_mouse_delta_y();
     }
 
     glViewport(0, 0, WINW, WINH);
@@ -126,19 +129,26 @@ main(void) {
       for(int i = 0; i < NUM_SPRITES; i++ ) {
         sprite spr = sprites[i];
         if(
-          mpos.x > spr.dest.x - spr.dest.w/2 && mpos.x < spr.dest.x + spr.dest.w/2
+          mpos.x > spr.pos.x - ball_size.x/2 && mpos.x < spr.pos.x + ball_size.x/2
           &&
-          mpos.y > spr.dest.y - spr.dest.h/2 && mpos.y < spr.dest.y + spr.dest.h/2
+          mpos.y > spr.pos.y - ball_size.y/2 && mpos.y < spr.pos.y + ball_size.y/2
         ) {
           spr.colour = 0xFF8888FF;
           overlap = true;
           if(!grabbed) last_sprite = &sprites[i];
         }
-        ms2d_texrect(tex, spr.src, spr.dest, spr.colour);
+        ms2d_texrectv(tex, spr.pos, ball_size, spr.src, spr.colour);
       }
 
       // draw cursor
-      ms2d_texrect(tex, (ms2d_rectangle){0, 64, 32, 32}, (ms2d_rectangle){mpos.x, mpos.y, 32, 32}, 0xFFFFFFFF);
+      ms2d_texrectvo(
+        tex,
+        mpos,
+        cursor_size,
+        cursor_tex,
+        MS2D_ORIGIN_CENTER,
+        0xFFFFFFFF
+      );
       ms2d_flush();
     SDL_GL_SwapWindow(window.handle);
 

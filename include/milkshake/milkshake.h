@@ -66,6 +66,28 @@
 #define MAX_SHADER_LOCS 32  /* maximum uniform locations a shader can have */
 #define MAX_SHADERS 64
 
+#define MS_BLACK      0x161616ff
+#define MS_WHITE      0xe9e4d9ff
+#define MS_GREY       0x585550ff
+#define MS_RED        0xf3565dff
+#define MS_PINK       0xdd7ab3ff
+#define MS_PURPLE     0x9756dfff
+#define MS_BLUE       0x6181f0ff
+#define MS_CYAN       0x5ddac5ff
+#define MS_GREEN      0xa6e25aff
+#define MS_YELLOW     0xe6d957ff
+#define MS_ORANGE     0xf89646ff
+
+#define MS_DARK_WHITE  0xa4a097ff
+#define MS_DARK_GREY   0x3d3b37ff     
+#define MS_DARK_RED    0xae2f43ff
+#define MS_DARK_PINK   0xba569cff
+#define MS_DARK_PURPLE 0x513391ff    
+#define MS_DARK_BLUE   0x4249c4ff   
+#define MS_DARK_CYAN   0x3999a7ff
+#define MS_DARK_GREEN  0x5ba936ff    
+#define MS_DARK_YELLOW 0xc2a53eff    
+#define MS_DARK_ORANGE 0xb15c2aff    
 
 #define IS_FLAG_SET(n, f) ((n) & (f)) == (f)
 #define WRAP(f, x, y) if(f < x){ f = y; } else if(f>y){f = x;} 

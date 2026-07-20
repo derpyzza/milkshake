@@ -1,8 +1,6 @@
-libs/
 .ignore
 test/
 a.out
-obj/
-out/
+build/
 test.c
 compile_flags.txt

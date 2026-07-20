@@ -146,11 +146,20 @@ void ms2d_rectpro(ms2d_rectangle r, vec2s origin, f32 rot, uint colour) {
   ms2d_texrectpro(ms2d_default_texture(), src, r, origin, rot, colour, false, false);
 }
 
-void ms2d_texrect(ms_texture tex, ms2d_rectangle src, ms2d_rectangle dest, uint colour) {
-  ms2d_texrectpro(tex, src, dest, GLMS_VEC2_ZERO, 0.0f, colour, false, false);
+void ms2d_texrect(ms_texture tex, ms2d_rectangle dest, ms2d_rectangle src, uint colour) {
+  ms2d_texrectpro(tex, src, dest, MS2D_ORIGIN_CENTER, 0.0f, colour, false, false);
 }
 
-void ms2d_texrectr(ms_texture tex, ms2d_rectangle src, ms2d_rectangle dest, f32 rot, uint colour) {
+void ms2d_texrectv(ms_texture tex, vec2s pos, vec2s size, ms2d_rectangle src, uint colour) {
+  ms2d_rectangle dest = {pos.x, pos.y, size.x, size.y };
+  ms2d_texrectpro(tex, src, dest, MS2D_ORIGIN_CENTER, 0.0f, colour, false, false);
+}
+
+void ms2d_texrectvo(ms_texture tex, vec2s pos, vec2s size, ms2d_rectangle src, vec2s origin, uint colour) {
+  ms2d_rectangle dest = {pos.x, pos.y, size.x, size.y };
+  ms2d_texrectpro(tex, src, dest, origin, 0.0f, colour, false, false);
+}
+void ms2d_texrectr(ms_texture tex, ms2d_rectangle dest, ms2d_rectangle src, f32 rot, uint colour) {
   ms2d_texrectpro(tex, src, dest, GLMS_VEC2_ZERO, rot, colour, false, false);
 }
 
@@ -160,7 +169,7 @@ void ms2d_texrectw(ms_texture tex, vec2s pos, uint colour, bool flip_x, bool fli
   ms2d_texrectpro(tex, src, dest, GLMS_VEC2_ZERO, 0.0f, colour, flip_x, flip_y);
 }
 
-void ms2d_texrectpro(ms_texture tex, ms2d_rectangle src, ms2d_rectangle dest, vec2s origin, f32 rot, uint colour, bool flip_x, bool flip_y) {
+void ms2d_texrectpro(ms_texture tex, ms2d_rectangle dest, ms2d_rectangle src, vec2s origin, f32 rot, uint colour, bool flip_x, bool flip_y) {
 
   sprite_vertex verts[4] = { 0 };
 

@@ -16,6 +16,10 @@ opengl render loop thingy:
 - switch backbuffers
 - goto start of loop
 
+important features i need to add support for:
+	-	text rendering ( some sort of simple system that supports bitmap fonts, ttf fonts, and sdf-based rendering )
+	- sound handling?
+
 
 i'll also need some sort of callback system for resource acquiring and handling.
 particularly:

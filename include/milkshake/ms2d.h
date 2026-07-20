@@ -24,42 +24,6 @@
 // TODO:
 //   > deprecate the spritebatch :(
 
-/*
-
-  struct {
-    ...
-    ms2d_renderbatch batch;
-  } state;
-
-  void init(void) {
-    ...
-    state.batch = ms2d_create_renderbatch(2048);
-  }
-
-  void draw(void) {
-    ms_bind_fbo(state.screen);
-    ms_bind_shader(shader);
-    ms_uniform_set_mat4(state.proj_loc, state.proj, false);
-    ms_uniform_set_mat4(state.view_loc, state.view, false);
-
-    ms2d_rect(10, 10, 30, 30, 0xFF0000FF);
-    ms2d_rect(50, 60, 30, 30, 0xFF0000FF);
-    ms2d_circ(40, 30, 30, 0xFF0000FF);
-    ms2d_rect(70, 30, 30, 30, 0xFF0000FF);
-    ms2d_rectr(40, 60, 30, 30, 60.0f, 0xFF0000FF);
-
-    ms2d_flush();
-
-    ms_unbind_fbo();
-    ms_bind_shader(shader);
-    ms_uniform_set_mat4(state.proj_loc, state.proj, false);
-    ms_uniform_set_mat4(state.view_loc, state.view, false);
-
-    ms2d_texrect(0, 0, WIN_H, WIN_W, 0, 0, SCR_H, SCR_W, 0xffffffff);
-    ms2d_flush();
-  }
-
-*/
 
 #ifdef __cplusplus
   extern "C" {
@@ -73,6 +37,13 @@
 #ifndef MS2D_DEFAULT_DRAWCALLS
 #  define MS2D_DEFAULT_DRAWCALLS 32
 #endif
+
+#define MS2D_ORIGIN_TOP_LEFT     (vec2s){{-1, -1}}
+#define MS2D_ORIGIN_TOP_RIGHT    (vec2s){{ 1, -1}}
+#define MS2D_ORIGIN_BOTTOM_RIGHT (vec2s){{ 1,  1}}
+#define MS2D_ORIGIN_BOTTOM_LEFT  (vec2s){{-1,  1}}
+#define MS2D_ORIGIN_CENTER       (vec2s){{ 0,  0}}
+
 
 typedef enum ms2d_drawmode {
   MS2D_LINES,
@@ -107,7 +78,7 @@ typedef struct {
   vec2s pos;      // screen pos in pixels
   vec2s size;     // screen size in pixels
   vec2s origin;   // origin / pivot point for the sprite.
-                  // defaults to (0.5, 0.5)
+                  // defaults to (0, 0)
                   // (the center of a quad)
                   // in normalized coordinates
 
@@ -157,15 +128,17 @@ void ms2d_rectv(vec2s pos, vec2s size, f32 rot, uint colour);
 void ms2d_rectpro(ms2d_rectangle r, vec2s origin, f32 rot, uint colour);
 
 // draw part of a texture as a rectangle
-void ms2d_texrect(ms_texture tex, ms2d_rectangle src, ms2d_rectangle dest, uint colour);
-void ms2d_texrectr(ms_texture tex, ms2d_rectangle src, ms2d_rectangle dest, f32 rot, uint colour);
+void ms2d_texrect  (ms_texture tex, ms2d_rectangle dest,   ms2d_rectangle src, uint colour);
+void ms2d_texrectv (ms_texture tex, vec2s pos, vec2s size, ms2d_rectangle src, uint colour);
+void ms2d_texrectvo(ms_texture tex, vec2s pos, vec2s size, ms2d_rectangle src, vec2s origin, uint colour);
+void ms2d_texrectr (ms_texture tex, ms2d_rectangle dest,   ms2d_rectangle src, f32 rot, uint colour);
 // draw entire texture as a rect
 void ms2d_texrectw(ms_texture tex, vec2s pos, uint colour, bool flip_x, bool flip_y);
 void ms2d_texrectpro(
   ms_texture tex,
-  ms2d_rectangle src,
-  ms2d_rectangle dest,
-  vec2s origin,
+  ms2d_rectangle dest, // where?
+  ms2d_rectangle src,  // from?
+  vec2s origin, // (0,0) is the center of the sprite, (-1,-1) is the top left corner
   f32 rot,
   uint colour,
   bool flip_x,

@@ -14,12 +14,20 @@
 // press 'r' to reposition the sprites randomly.
 // hover over a sprite to select, hold lmb to drag it around.
 
-ms2D_sprite sprites[NUM_SPRITES] = { 0 };
-ms2D_spritebatch batch;
+typedef struct {
+  ms2d_rectangle src, dest;
+  uint colour;
+} sprite;
+
+sprite sprites[NUM_SPRITES] = { 0 };
+sprite * last_sprite = NULL;
+
+ms2d_renderbatch batch;
 vec2s ssize = {{64, 64}};
 vec2s mpos;
 
-ms2D_sprite * last_sprite = NULL;
+ms_texture tex;
+
 bool grabbed = false;
 bool overlap = false;
 
@@ -34,28 +42,27 @@ void generate_balls(void) {
     // uv offset to randomly pick a sprite
     float offset = SDL_rand(2);
 
-    sprites[i] = ms2D_create_sprite(
-      (vec2s){{x, y}},
-      ssize,
-      (vec2s){{offset * 64, 0}},
-      ssize
-    );
+    sprites[i] = (sprite){
+      {offset * 64, 0, ssize.x, ssize.y},
+      {x, y, ssize.x, ssize.y},
+      0xFFFFFFFF
+    };
   }
 }
 
 void submit_balls (void) {
   for(int i = 0; i < NUM_SPRITES; i++ ) {
-    ms2D_sprite spr = sprites[i];
+    sprite spr = sprites[i];
     if(
-      mpos.x > spr.pos.x - spr.size.x/2 && mpos.x < spr.pos.x + spr.size.x/2
+      mpos.x > spr.dest.x - spr.dest.w/2 && mpos.x < spr.dest.x + spr.dest.w/2
       &&
-      mpos.y > spr.pos.y - spr.size.y/2 && mpos.y < spr.pos.y + spr.size.y/2
+      mpos.y > spr.dest.y - spr.dest.h/2 && mpos.y < spr.dest.y + spr.dest.h/2
     ) {
       spr.colour = 0xFF0000FF;
       overlap = true;
       if(!grabbed) last_sprite = &sprites[i];
     }
-    ms2D_spritebatch_submit(&batch, spr);
+    ms2d_texrect(tex, spr.src, spr.dest, spr.colour);
   }
 }
 
@@ -64,7 +71,7 @@ main(void) {
   ms_window window = ms_init_window(WINW, WINH, "spritebatch", 0);
   SDL_HideCursor();
 
-  ms_texture tex = ms_load_texture("./res/ball.png", &PIXEL_SPRITE_SAMPLER);
+  tex = ms_load_texture("./res/ball.png", &PIXEL_SPRITE_SAMPLER);
   // use the default sprite shader, defined in `milkshake/2D.h`
   ms_shader shader = ms2d_sprite_shader();
   ms_uniform
