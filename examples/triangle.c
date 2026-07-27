@@ -45,7 +45,7 @@ main(void) {
       quit = true;
     }
 
-    ms_clear_colour(0x98a96dFF);
+    ms_clear_colour(MS_BLACK);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
       ms_bind_shader(shader);
       ms_draw_arrays(tri, MS_PrimMode_Triangle, 0, 3);

@@ -65,7 +65,7 @@ export LSAN_OPTIONS
 
 all: debug examples
 
-debug: CFLAGS += -ggdb -O0 -DDEBUG=1
+debug: CFLAGS += -g -ggdb -O0 -DDEBUG=1
 # debug: CFLAGS += -fsanitize=address,undefined
 debug: $(PROG)
 
@@ -90,11 +90,11 @@ EX_SRC := $(shell find $(EX_DIR) -name "*.c")
 EX_BIN := $(patsubst $(EX_DIR)/%.c,$(EX_OUT)/%,$(EX_SRC))
 
 $(EX_BIN): $(EX_OUT)/% : $(EX_DIR)/%.c
+	@echo "Building example: $<"
 	@mkdir -p $(@D)
 	$(CC) $< -o $@ $(CFLAGS) $(INCLUDES) $(EX_LDFLAGS) $(PROG)
 
-examples: $(PROG) $(EX_BIN) 
-	@echo $(EX_BIN)
+examples: debug $(EX_BIN) 
 
 $(OBJ)/src/%.o: src/%.c
 	@mkdir -p $(@D)

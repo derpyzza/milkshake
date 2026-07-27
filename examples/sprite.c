@@ -34,19 +34,12 @@ main(void) {
     u_proj_loc = ms_get_uniform(shader, "proj")
     , u_view_loc = ms_get_uniform(shader, "view")
     ;
+  mat4s proj = glms_ortho( 0 , WINW , WINH , 0 , 0 , 10 );
 
   // NUM_SPRITES + 1 for the custom cursor sprite
   ms2d_renderbatch batch = ms2d_new_renderbatch();
   ms2d_bind_renderbatch(&batch);
 
-  mat4s proj = glms_ortho(
-    0
-    , WINW
-    , WINH
-    , 0
-    , 0
-    , 10
-  );
   
   vec2s ball_size = {{64, 64}};
 
@@ -104,6 +97,11 @@ main(void) {
 
     overlap = false;
 
+    if(grabbed) {
+      last_sprite->pos.x += ms_mouse_delta_x();
+      last_sprite->pos.y += ms_mouse_delta_y();
+    }
+
 
     if(ms_is_key_pressed(Key_R)) {
       for(int i = 0; i < NUM_SPRITES; i++ ) {
@@ -112,11 +110,6 @@ main(void) {
         sprites[i].pos.x = x;
         sprites[i].pos.y = y;
       }
-    }
-
-    if(grabbed) {
-      last_sprite->pos.x += ms_mouse_delta_x();
-      last_sprite->pos.y += ms_mouse_delta_y();
     }
 
     glViewport(0, 0, WINW, WINH);

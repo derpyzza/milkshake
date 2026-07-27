@@ -15,7 +15,8 @@
 // hover over a sprite to select, hold lmb to drag it around.
 
 typedef struct {
-  ms2d_rectangle src, dest;
+  ms2d_rectangle src;
+  vec2s pos;
   uint colour;
 } sprite;
 
@@ -23,7 +24,7 @@ sprite sprites[NUM_SPRITES] = { 0 };
 sprite * last_sprite = NULL;
 
 ms2d_renderbatch batch;
-vec2s ssize = {{64, 64}};
+vec2s ball_size = {{64, 64}};
 vec2s mpos;
 
 ms_texture tex;
@@ -43,8 +44,10 @@ void generate_balls(void) {
     float offset = SDL_rand(2);
 
     sprites[i] = (sprite){
-      {offset * 64, 0, ssize.x, ssize.y},
-      {x, y, ssize.x, ssize.y},
+      // texture src rect
+      {offset * 64, 0, ball_size.x, ball_size.y},
+      // pos
+      {{x, y}},
       0xFFFFFFFF
     };
   }
@@ -54,15 +57,15 @@ void submit_balls (void) {
   for(int i = 0; i < NUM_SPRITES; i++ ) {
     sprite spr = sprites[i];
     if(
-      mpos.x > spr.dest.x - spr.dest.w/2 && mpos.x < spr.dest.x + spr.dest.w/2
+      mpos.x > spr.pos.x - ball_size.x/2 && mpos.x < spr.pos.x + ball_size.x/2
       &&
-      mpos.y > spr.dest.y - spr.dest.h/2 && mpos.y < spr.dest.y + spr.dest.h/2
+      mpos.y > spr.pos.y - ball_size.y/2 && mpos.y < spr.pos.y + ball_size.y/2
     ) {
-      spr.colour = 0xFF0000FF;
+      spr.colour = 0xFF8888FF;
       overlap = true;
       if(!grabbed) last_sprite = &sprites[i];
     }
-    ms2d_texrect(tex, spr.src, spr.dest, spr.colour);
+    ms2d_texrectv(tex, spr.pos, ball_size, spr.src, spr.colour);
   }
 }
 
@@ -71,7 +74,7 @@ main(void) {
   ms_window window = ms_init_window(WINW, WINH, "spritebatch", 0);
   SDL_HideCursor();
 
-  tex = ms_load_texture("./res/ball.png", &PIXEL_SPRITE_SAMPLER);
+  tex = ms_load_texture("./examples/res/ball.png", &PIXEL_SPRITE_SAMPLER);
   // use the default sprite shader, defined in `milkshake/2D.h`
   ms_shader shader = ms2d_sprite_shader();
   ms_uniform
@@ -86,35 +89,24 @@ main(void) {
     dlog_error("framebuffer incomplete: %i", glGetError());
     return -1;
   }
-  ms2D_sprite minimap_sprite = ms2D_create_sprite(
-    (vec2s){{0,   0  }}, // pos
-    (vec2s){{256, 256}}, // size
-    (vec2s){{0,   0  }}, // uv pos
-    (vec2s){{256, 256}}  // uv size
-  );
-  minimap_sprite.origin = GLMS_VEC2_ZERO;
-  minimap_sprite.flip_y = true;
+
+  ms2d_rectangle minimap_src = { 0, 0, 256, 256 };
   
   // timing stuff, used to change the window title once every second.
   u64 now = 0, last_now = 0;
   u64 fps_timer = 0;
   float delta = 0;
 
-  // NUM_SPRITES + 1 for the custom cursor sprite
-  batch = ms2D_create_spritebatch(tex, NUM_SPRITES + 1);
+  batch = ms2d_new_renderbatch();
+  ms2d_bind_renderbatch(&batch);
   mpos = ms_mouse_pos();
+
   // setup the initial sprite array
   generate_balls();
   
 
-  ms2D_sprite cursor =
-    ms2D_create_sprite(
-      mpos,
-      (vec2s){{32, 32}},
-      (vec2s){{0, 64}},
-      (vec2s){{32, 32}}
-    );
-  cursor.origin = GLMS_VEC2_ZERO;
+  ms2d_rectangle cursor_tex = {0, 64, 32, 32};
+  vec2s          cursor_size = (vec2s){{32, 32}};
 
   bool quit = false;
 
@@ -133,17 +125,18 @@ main(void) {
     }
 
     mpos = ms_mouse_pos();
-    cursor.pos = mpos;
 
-    if(overlap && ms_is_mouse_down(SDL_BUTTON_LEFT)) {
+    if( (overlap && ms_is_mouse_down(SDL_BUTTON_LEFT)) || (grabbed && ms_is_mouse_down(SDL_BUTTON_LEFT)) ) {
       grabbed = true;
     } else {
       grabbed = false;
     }
+
     overlap = false;
 
     if(grabbed) {
-      last_sprite->pos = mpos;
+      last_sprite->pos.x += ms_mouse_delta_x();
+      last_sprite->pos.y += ms_mouse_delta_y();
     }
 
   	glEnable(GL_BLEND);
@@ -159,10 +152,16 @@ main(void) {
       ms_shader_set_mat4(shader, u_view_loc, &GLMS_MAT4_IDENTITY, false);
 
       submit_balls();
-      ms2D_spritebatch_submit(&batch, cursor);
-
-      ms2D_spritebatch_flush(&batch);
-
+      ms2d_texrectvo(
+        tex,
+        mpos,
+        cursor_size,
+        cursor_tex,
+        MS2D_ORIGIN_CENTER,
+        0xFFFFFFFF
+      );
+      ms2d_flush();
+      
     ms_unbind_fbo();
       glViewport(0, 0, WINW, WINH);
       ms_clear_colour(0x140e2cff);
@@ -172,20 +171,38 @@ main(void) {
         ms_shader_set_mat4(shader, u_view_loc, &GLMS_MAT4_IDENTITY, false);
 
         // draw balls to the screen
-        submit_balls();
-        ms2D_spritebatch_flush(&batch);
+        // submit_balls();
+        for(int i = 0; i < NUM_SPRITES; i++ ) {
+          sprite spr = sprites[i];
+          if(
+            mpos.x > spr.pos.x - ball_size.x/2 && mpos.x < spr.pos.x + ball_size.x/2
+            &&
+            mpos.y > spr.pos.y - ball_size.y/2 && mpos.y < spr.pos.y + ball_size.y/2
+          ) {
+            spr.colour = 0xFF8888FF;
+            overlap = true;
+            if(!grabbed) last_sprite = &sprites[i];
+          }
+          ms2d_texrectv(tex, spr.pos, ball_size, spr.src, spr.colour);
+        }
+        ms2d_flush();
 
         // draw minimap
-        ms2D_spritebatch_swap_texture(&batch, minimap);
         glDisable(GL_BLEND);
-        ms2D_spritebatch_submit(&batch, minimap_sprite);
-        ms2D_spritebatch_flush(&batch);
+        ms2d_texrectpro(minimap, minimap_src, minimap_src, MS2D_ORIGIN_TOP_LEFT, 0, 0xFFFFFFFF, false, true);
         glEnable(GL_BLEND);
+        ms2d_flush();
 
         // draw cursor
-        ms2D_spritebatch_swap_texture(&batch, tex);
-        ms2D_spritebatch_submit(&batch, cursor);
-        ms2D_spritebatch_flush(&batch);
+        ms2d_texrectvo(
+          tex,
+          mpos,
+          cursor_size,
+          cursor_tex,
+          MS2D_ORIGIN_CENTER,
+          0xFFFFFFFF
+        );
+        ms2d_flush();
 
     SDL_GL_SwapWindow(window.handle);
 

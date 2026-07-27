@@ -23,37 +23,42 @@ const static dstr frag = dstr(
 "}\n"
 );
 
-static const float verts[] = {
+typedef struct {
+  float pos[3];
+  u8 col[4];
+} verts_t;
+
+static const verts_t verts[] = {
   // pos               // colour
-  -0.5f, -0.5f,  0.5f, 1, 0, 0, 1,
-   0.5f, -0.5f,  0.5f, 0, 1, 0, 1,
-   0.5f,  0.5f,  0.5f, 0, 0, 1, 1,
-  -0.5f,  0.5f,  0.5f, 0, 0, 0, 1,
+  { { -0.5f, -0.5f,  0.5f }, ms_hex_to_bytes(MS_RED) },
+  { {  0.5f, -0.5f,  0.5f }, ms_hex_to_bytes(MS_BLUE) },
+  { {  0.5f,  0.5f,  0.5f }, ms_hex_to_bytes(MS_GREEN) },
+  { { -0.5f,  0.5f,  0.5f }, ms_hex_to_bytes(MS_PURE_BLACK) },
 
-   0.5f, -0.5f, -0.5f, 1, 0, 0, 1,
-  -0.5f, -0.5f, -0.5f, 1, 0, 0, 1,
-  -0.5f,  0.5f, -0.5f, 1, 0, 0, 1,
-   0.5f,  0.5f, -0.5f, 1, 0, 0, 1,
+  { {  0.5f, -0.5f, -0.5f }, ms_hex_to_bytes(MS_RED) },
+  { { -0.5f, -0.5f, -0.5f }, ms_hex_to_bytes(MS_RED) },
+  { { -0.5f,  0.5f, -0.5f }, ms_hex_to_bytes(MS_RED) },
+  { {  0.5f,  0.5f, -0.5f }, ms_hex_to_bytes(MS_RED) },
 
-  -0.5f, -0.5f, -0.5f, 0, 1, 0, 1,
-  -0.5f, -0.5f,  0.5f, 0, 1, 0, 1,
-  -0.5f,  0.5f,  0.5f, 0, 1, 0, 1,
-  -0.5f,  0.5f, -0.5f, 0, 1, 0, 1,
+  { { -0.5f, -0.5f, -0.5f }, ms_hex_to_bytes(MS_BLUE) },
+  { { -0.5f, -0.5f,  0.5f }, ms_hex_to_bytes(MS_BLUE) },
+  { { -0.5f,  0.5f,  0.5f }, ms_hex_to_bytes(MS_BLUE) },
+  { { -0.5f,  0.5f, -0.5f }, ms_hex_to_bytes(MS_BLUE) },
 
-   0.5f, -0.5f,  0.5f, 0, 0, 1, 1,
-   0.5f, -0.5f, -0.5f, 0, 0, 1, 1,
-   0.5f,  0.5f, -0.5f, 0, 0, 1, 1,
-   0.5f,  0.5f,  0.5f, 0, 0, 1, 1,
+  { {  0.5f, -0.5f,  0.5f }, ms_hex_to_bytes(MS_GREEN) },
+  { {  0.5f, -0.5f, -0.5f }, ms_hex_to_bytes(MS_GREEN) },
+  { {  0.5f,  0.5f, -0.5f }, ms_hex_to_bytes(MS_GREEN) },
+  { {  0.5f,  0.5f,  0.5f }, ms_hex_to_bytes(MS_GREEN) },
 
-  -0.5f,  0.5f,  0.5f, 1, 1, 0, 1,
-   0.5f,  0.5f,  0.5f, 1, 1, 0, 1,
-   0.5f,  0.5f, -0.5f, 1, 1, 0, 1,
-  -0.5f,  0.5f, -0.5f, 1, 1, 0, 1,
+  { { -0.5f,  0.5f,  0.5f }, ms_hex_to_bytes(MS_YELLOW) },
+  { {  0.5f,  0.5f,  0.5f }, ms_hex_to_bytes(MS_YELLOW) },
+  { {  0.5f,  0.5f, -0.5f }, ms_hex_to_bytes(MS_YELLOW) },
+  { { -0.5f,  0.5f, -0.5f }, ms_hex_to_bytes(MS_YELLOW) },
 
-  -0.5f, -0.5f, -0.5f, 0, 1, 1, 1,
-   0.5f, -0.5f, -0.5f, 0, 1, 1, 1,
-   0.5f, -0.5f,  0.5f, 0, 1, 1, 1,
-  -0.5f, -0.5f,  0.5f,  0, 1, 1, 1
+  { { -0.5f, -0.5f, -0.5f }, ms_hex_to_bytes(MS_PINK) },
+  { {  0.5f, -0.5f, -0.5f }, ms_hex_to_bytes(MS_PINK) },
+  { {  0.5f, -0.5f,  0.5f }, ms_hex_to_bytes(MS_PINK) },
+  { { -0.5f, -0.5f,  0.5f }, ms_hex_to_bytes(MS_PINK) },
 };
 
 static const uint indices[] = {
@@ -63,6 +68,29 @@ static const uint indices[] = {
   12, 13, 14,  14, 15, 12,
   16, 17, 18,  18, 19, 16,
   20, 21, 22,  22, 23, 20
+};
+
+static const ms_vertex_layout layout = {
+  .num_attribs = 3,
+  .stride = 3 * sizeof(float) + sizeof(u32),
+  .attribs = (ms_vertex_attrib[]){
+    {
+      .index = 0,
+      .size = 3,
+      .type = GL_FLOAT,
+      .normalized = false,
+      .offset = 0,
+      .attr_kind = MS_VertKind_Position,
+    },
+    {
+      .index = 1,
+      .size = 4,
+      .type = GL_UNSIGNED_BYTE,
+      .normalized = true,
+      .offset = 3 * sizeof(float),
+      .attr_kind = MS_VertKind_Colour_N,
+    },
+  }
 };
 
 
@@ -91,7 +119,7 @@ main(void) {
       , sizeof(indices)
       , indices
     );
-  ms_vao_attach_vbo(cube, vert_buf, MS_VERTLAYOUT_POSCOL);  
+  ms_vao_attach_vbo(cube, vert_buf, layout);  
   ms_vao_attach_ebo(cube, index_buf);
 
   mat4s model = GLMS_MAT4_IDENTITY
@@ -109,7 +137,7 @@ main(void) {
 
     model = glms_rotate(model, glm_rad(0.1), (vec3s){{0.4, 0.5, .7}});
 
-    ms_clear_colour(0x98a96dFF);
+    ms_clear_colour(MS_BLACK);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
       ms_bind_shader(shader);
       ms_shader_set_mat4(shader, view_loc,  &view, false);

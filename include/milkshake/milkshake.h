@@ -66,6 +66,25 @@
 #define MAX_SHADER_LOCS 32  /* maximum uniform locations a shader can have */
 #define MAX_SHADERS 64
 
+// dynamic library exports are currently not implemented and won't be for
+// a little while, but i'm just leaving this here to remind myself that
+// it *is* something i need to get to soon
+#if 0
+#if defined(_WIN32)
+	#define MS_PUB __declspec(dllexport)
+#elif defined(__ELF__) || defined(__linux__) || defined(__APPLE__)
+	#define MS_PUB __attribute__((visibility("default")))
+#else
+	#define MS_PUB
+#endif
+#endif
+
+#define MS_PURE_BLACK 0x000000FF
+#define MS_PURE_WHITE 0xFFFFFFFF
+#define MS_PURE_RED   0xFF0000FF
+#define MS_PURE_GREEN 0x00FF00FF
+#define MS_PURE_BLUE  0x0000FFFF
+
 #define MS_BLACK      0x161616ff
 #define MS_WHITE      0xe9e4d9ff
 #define MS_GREY       0x585550ff

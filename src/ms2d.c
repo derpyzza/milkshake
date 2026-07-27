@@ -79,6 +79,7 @@ ms2d_renderbatch ms2d_create_renderbatch(isize num_quads, isize num_drawcalls) {
 }
 
 void ms2d_flush(void) {
+  dassert(cur_batch != NULL, "no bound renderbuffers, please bind a renderbuffer with ms2d_bind_renderbuffer before trying to draw something");
   glBindBuffer(GL_ARRAY_BUFFER, cur_batch->vbo.id); 
   glBufferSubData(
       GL_ARRAY_BUFFER, 
@@ -141,32 +142,32 @@ void ms2d_rectv(vec2s pos, vec2s size, f32 rot, uint colour) {
   ms2d_rectpro(r, GLMS_VEC2_ZERO, rot, colour);
 }
 
-void ms2d_rectpro(ms2d_rectangle r, vec2s origin, f32 rot, uint colour) {
-  ms2d_rectangle src = { 0, 0, r.w, r.h };
-  ms2d_texrectpro(ms2d_default_texture(), src, r, origin, rot, colour, false, false);
+void ms2d_rectpro(ms2d_rectangle dest, vec2s origin, f32 rot, uint colour) {
+  ms2d_rectangle src = { 0, 0, dest.w, dest.h };
+  ms2d_texrectpro(ms2d_default_texture(), dest, src, origin, rot, colour, false, false);
 }
 
 void ms2d_texrect(ms_texture tex, ms2d_rectangle dest, ms2d_rectangle src, uint colour) {
-  ms2d_texrectpro(tex, src, dest, MS2D_ORIGIN_CENTER, 0.0f, colour, false, false);
+  ms2d_texrectpro(tex, dest, src, MS2D_ORIGIN_CENTER, 0.0f, colour, false, false);
 }
 
 void ms2d_texrectv(ms_texture tex, vec2s pos, vec2s size, ms2d_rectangle src, uint colour) {
   ms2d_rectangle dest = {pos.x, pos.y, size.x, size.y };
-  ms2d_texrectpro(tex, src, dest, MS2D_ORIGIN_CENTER, 0.0f, colour, false, false);
+  ms2d_texrectpro(tex, dest, src, MS2D_ORIGIN_CENTER, 0.0f, colour, false, false);
 }
 
 void ms2d_texrectvo(ms_texture tex, vec2s pos, vec2s size, ms2d_rectangle src, vec2s origin, uint colour) {
   ms2d_rectangle dest = {pos.x, pos.y, size.x, size.y };
-  ms2d_texrectpro(tex, src, dest, origin, 0.0f, colour, false, false);
+  ms2d_texrectpro(tex, dest, src, origin, 0.0f, colour, false, false);
 }
 void ms2d_texrectr(ms_texture tex, ms2d_rectangle dest, ms2d_rectangle src, f32 rot, uint colour) {
-  ms2d_texrectpro(tex, src, dest, GLMS_VEC2_ZERO, rot, colour, false, false);
+  ms2d_texrectpro(tex, dest, src, GLMS_VEC2_ZERO, rot, colour, false, false);
 }
 
 void ms2d_texrectw(ms_texture tex, vec2s pos, uint colour, bool flip_x, bool flip_y) {
   ms2d_rectangle src = { 0, 0, tex.width, tex.height };
   ms2d_rectangle dest = { pos.x, pos.y, tex.width, tex.height };
-  ms2d_texrectpro(tex, src, dest, GLMS_VEC2_ZERO, 0.0f, colour, flip_x, flip_y);
+  ms2d_texrectpro(tex, dest, src, GLMS_VEC2_ZERO, 0.0f, colour, flip_x, flip_y);
 }
 
 void ms2d_texrectpro(ms_texture tex, ms2d_rectangle dest, ms2d_rectangle src, vec2s origin, f32 rot, uint colour, bool flip_x, bool flip_y) {
@@ -329,6 +330,7 @@ void ms2d_circ_sec  (f32 x, f32 y, f32 r, f32 start_angle, f32 end_angle, int se
 }
 
 void ms2d_poly_submit(ms2d_drawmode mode, ms_texture tex, sprite_vertex* verts, uint num_verts) {
+  dassert(cur_batch != NULL, "no bound renderbuffers, please bind a renderbuffer with ms2d_bind_renderbuffer before trying to draw something");
   // flush batch if the limit's been met
   if(cur_batch->num_verts+num_verts >= cur_batch->max_verts) {
     ms2d_flush();
