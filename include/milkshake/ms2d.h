@@ -200,8 +200,9 @@ static const ms_vertex_layout MS2D_VERTLAYOUT_SPRITE = {
   }
 };
 
-static ms_shader ms2d_sprite_shader(void) {
-  const dstr vert = dstr(
+
+static inline const dstr ms2d_vertex_shader(void) {
+  return dstr(
     "#version 330 core\n"
     "layout (location=0) in vec2 a_pos;"
     "layout (location=1) in vec2 a_uv;"
@@ -217,7 +218,10 @@ static ms_shader ms2d_sprite_shader(void) {
       "v_col = a_col;"
     "}"
   );
-  const dstr frag = dstr(
+}
+
+static inline const dstr ms2d_fragment_shader(void) {
+  return dstr(
     "#version 330 core\n"
     "out vec4 FragColour;"
     "in vec2 v_uv;"
@@ -228,36 +232,14 @@ static ms_shader ms2d_sprite_shader(void) {
       "FragColour = _tex * v_col;"
     "}"
   );
-
-  // cache shader
-  static bool init = false;
-  static ms_shader out;
-  if(!init) {
-    out = ms_create_shader_from_source(vert, frag);
-    init = true;
-  }
-
-  return out;
 }
 
-static ms_texture ms2d_default_texture(void) {
-  static bool init_texture = false;
-  static ms_texture out;
-  if(!init_texture) {
-    int col = 0xFFFFFFFF;
-    out = ms_create_texture(1, 1, GL_RGBA8, GL_RGBA, &col,
-      &(ms_sampler){
-        GL_CLAMP_TO_EDGE,
-        GL_CLAMP_TO_EDGE,
-        GL_NEAREST,
-        GL_NEAREST
-      }
-    );
-    init_texture = true;
-  }
-
-  return out;
-}
+// compiles and returns the default sprite shader.
+// is just a handy shortcut to compiling the shader yourself via
+// ms2d_vertex_shader() and ms2D_fragment_shader()
+ms_shader ms2d_sprite_shader(void);
+// creates and returns the default texture: a 1x1 white pixel :)
+ms_texture ms2d_default_texture(void);
 
 #ifdef __cplusplus
 	}

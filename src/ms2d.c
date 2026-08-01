@@ -14,6 +14,40 @@
 
 static ms2d_renderbatch * cur_batch;
 
+
+ms_shader ms2d_sprite_shader(void) {
+  // cache shader
+  static bool init = false;
+  static ms_shader out;
+  if(!init) {
+    out = ms_create_shader_from_source(ms2d_vertex_shader(), ms2d_fragment_shader());
+    init = true;
+  }
+
+  return out;
+}
+
+ms_texture ms2d_default_texture(void) {
+  static bool init_texture = false;
+  static ms_texture out;
+  if(!init_texture) {
+    int col = 0xFFFFFFFF;
+    out = ms_create_texture(1, 1, GL_RGBA8, GL_RGBA, &col,
+      &(ms_sampler){
+        GL_CLAMP_TO_EDGE,
+        GL_CLAMP_TO_EDGE,
+        GL_NEAREST,
+        GL_NEAREST
+      }
+    );
+    init_texture = true;
+  }
+
+  return out;
+}
+
+
+
 void ms2d_bind_renderbatch(ms2d_renderbatch* batch) {
   cur_batch = batch;
 }
