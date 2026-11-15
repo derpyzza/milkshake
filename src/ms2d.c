@@ -13,7 +13,7 @@
 #include <milkshake/ms2d.h>
 
 static ms2d_renderbatch * cur_batch;
-
+static ms2d_drawmode cur_mode = MS2D_DRAWMODE_QUADS;
 
 ms_shader ms2d_sprite_shader(void) {
   // cache shader
@@ -32,7 +32,12 @@ ms_texture ms2d_default_texture(void) {
   static ms_texture out;
   if(!init_texture) {
     int col = 0xFFFFFFFF;
-    out = ms_create_texture(1, 1, GL_RGBA8, GL_RGBA, &col,
+    out = ms_create_texture(
+      1,         // width (px)
+      1,         // height(px)
+      GL_RGBA8,  // input format
+      GL_RGBA,   // output format
+      &col,      // pixel data
       &(ms_sampler){
         GL_CLAMP_TO_EDGE,
         GL_CLAMP_TO_EDGE,
@@ -71,7 +76,7 @@ ms2d_renderbatch ms2d_create_renderbatch(isize num_quads, isize num_drawcalls) {
 
   for(int i = 0; i < out.max_drawcalls; i++) {
     ms2d_drawcall * call = &out.drawcalls[i];
-    call->mode = MS2D_QUADS;
+    call->mode = MS2D_DRAWMODE_QUADS;
     call->texture = ms2d_default_texture();
     call->num_verts = 0;
     call->vert_align = 0;
@@ -112,8 +117,18 @@ ms2d_renderbatch ms2d_create_renderbatch(isize num_quads, isize num_drawcalls) {
   return out;
 }
 
+
+void ms2d_draw_mode(ms2d_drawmode mode) {
+  dassert(cur_batch != NULL, "no bound renderbuffers, please bind a renderbuffer with ms2d_bind_renderbuffer before trying to draw something");
+  cur_mode = mode;
+}
+
 void ms2d_flush(void) {
   dassert(cur_batch != NULL, "no bound renderbuffers, please bind a renderbuffer with ms2d_bind_renderbuffer before trying to draw something");
+  if( cur_batch->num_verts == 0 ) {
+    return;
+  }
+
   glBindBuffer(GL_ARRAY_BUFFER, cur_batch->vbo.id); 
   glBufferSubData(
       GL_ARRAY_BUFFER, 
@@ -126,8 +141,8 @@ void ms2d_flush(void) {
     ms2d_drawcall * call = &cur_batch->drawcalls[i];
     ms_bind_texture(call->texture);
 
-    if(call->mode == MS2D_LINES || call->mode == MS2D_TRIS) {
-      int prim_mode = call->mode == MS2D_LINES ? GL_LINES : GL_TRIANGLES;
+    if(call->mode == MS2D_DRAWMODE_LINES || call->mode == MS2D_DRAWMODE_TRIS) {
+      int prim_mode = call->mode == MS2D_DRAWMODE_LINES ? GL_LINES : GL_TRIANGLES;
       ms_draw_arrays(cur_batch->vao, prim_mode, offset, call->num_verts);
     } else {
       ms_draw_elems(
@@ -145,7 +160,7 @@ void ms2d_flush(void) {
   // reset state
   for(int i = 0; i < cur_batch->max_drawcalls; i++) {
     ms2d_drawcall * call = &cur_batch->drawcalls[i];
-    call->mode = MS2D_QUADS;
+    call->mode = MS2D_DRAWMODE_QUADS;
     call->texture = ms2d_default_texture();
     call->num_verts = 0;
     call->vert_align = 0;
@@ -156,56 +171,83 @@ void ms2d_flush(void) {
 }
 
 void ms2d_rect(f32 x, f32 y, f32 w, f32 h, uint colour) {
-  sprite_vertex verts[4] = {
-    { {{x, y    }}, {{0, 0}}, ms_hex_to_bytes(colour) },
-    { {{x, y+h  }}, {{0, 0}}, ms_hex_to_bytes(colour) },
-    { {{x+w, y+h}}, {{0, 0}}, ms_hex_to_bytes(colour) },
-    { {{x+w, y  }}, {{0, 0}}, ms_hex_to_bytes(colour) },
-  };
-
-  ms2d_poly_submit(MS2D_QUADS, ms2d_default_texture(), verts, 4);
+  if(cur_mode != MS2D_DRAWMODE_QUADS) ms2d_draw_mode(MS2D_DRAWMODE_QUADS);
+  ms2d_rectangle r = { x, y, w, h };
+  ms2d_rectpro(r, GLMS_VEC2_ZERO, 0, colour);
 }
 
 void ms2d_rectr(f32 x, f32 y, f32 w, f32 h, f32 rot, uint colour) {
+  if(cur_mode != MS2D_DRAWMODE_QUADS) ms2d_draw_mode(MS2D_DRAWMODE_QUADS);
   ms2d_rectangle r = { x, y, w, h };
   ms2d_rectpro(r, GLMS_VEC2_ZERO, rot, colour);
 }
 
 void ms2d_rectv(vec2s pos, vec2s size, f32 rot, uint colour) {
+  if(cur_mode != MS2D_DRAWMODE_QUADS) ms2d_draw_mode(MS2D_DRAWMODE_QUADS);
+  ms2d_rectangle r = { pos.x, pos.y, size.x, size.y };
+  ms2d_rectpro(r, GLMS_VEC2_ZERO, rot, colour);
+}
+
+void ms2d_rect_line  (f32 x, f32 y, f32 w, f32 h, uint colour) {
+  if(cur_mode != MS2D_DRAWMODE_LINES) ms2d_draw_mode(MS2D_DRAWMODE_LINES);
+  ms2d_rectangle r = { x, y, w, h };
+  ms2d_rectpro(r, GLMS_VEC2_ZERO, 0, colour);
+}
+
+void ms2d_rect_liner (f32 x, f32 y, f32 w, f32 h, f32 rot, uint colour) {
+  if(cur_mode != MS2D_DRAWMODE_LINES) ms2d_draw_mode(MS2D_DRAWMODE_LINES);
+  ms2d_rectangle r = { x, y, w, h };
+  ms2d_rectpro(r, GLMS_VEC2_ZERO, rot, colour);
+}
+
+void ms2d_rect_linev (vec2s pos, vec2s size, f32 rot, uint colour) {
+  if(cur_mode != MS2D_DRAWMODE_LINES) ms2d_draw_mode(MS2D_DRAWMODE_LINES);
   ms2d_rectangle r = { pos.x, pos.y, size.x, size.y };
   ms2d_rectpro(r, GLMS_VEC2_ZERO, rot, colour);
 }
 
 void ms2d_rectpro(ms2d_rectangle dest, vec2s origin, f32 rot, uint colour) {
+  if(cur_mode != MS2D_DRAWMODE_QUADS) ms2d_draw_mode(MS2D_DRAWMODE_QUADS);
   ms2d_rectangle src = { 0, 0, dest.w, dest.h };
   ms2d_texrectpro(ms2d_default_texture(), dest, src, origin, rot, colour, false, false);
 }
 
 void ms2d_texrect(ms_texture tex, ms2d_rectangle dest, ms2d_rectangle src, uint colour) {
+  if(cur_mode != MS2D_DRAWMODE_QUADS) ms2d_draw_mode(MS2D_DRAWMODE_QUADS);
   ms2d_texrectpro(tex, dest, src, MS2D_ORIGIN_CENTER, 0.0f, colour, false, false);
 }
 
 void ms2d_texrectv(ms_texture tex, vec2s pos, vec2s size, ms2d_rectangle src, uint colour) {
+  if(cur_mode != MS2D_DRAWMODE_QUADS) ms2d_draw_mode(MS2D_DRAWMODE_QUADS);
   ms2d_rectangle dest = {pos.x, pos.y, size.x, size.y };
   ms2d_texrectpro(tex, dest, src, MS2D_ORIGIN_CENTER, 0.0f, colour, false, false);
 }
 
 void ms2d_texrectvo(ms_texture tex, vec2s pos, vec2s size, ms2d_rectangle src, vec2s origin, uint colour) {
+  if(cur_mode != MS2D_DRAWMODE_QUADS) ms2d_draw_mode(MS2D_DRAWMODE_QUADS);
   ms2d_rectangle dest = {pos.x, pos.y, size.x, size.y };
   ms2d_texrectpro(tex, dest, src, origin, 0.0f, colour, false, false);
 }
+
+void ms2d_texrectvr(ms_texture tex, vec2s pos, vec2s size, ms2d_rectangle src, f32 rot, uint colour) {
+  if(cur_mode != MS2D_DRAWMODE_QUADS) ms2d_draw_mode(MS2D_DRAWMODE_QUADS);
+  ms2d_rectangle dest = {pos.x, pos.y, size.x, size.y };
+  ms2d_texrectpro(tex, dest, src, MS2D_ORIGIN_CENTER, rot, colour, false, false);
+}
+
 void ms2d_texrectr(ms_texture tex, ms2d_rectangle dest, ms2d_rectangle src, f32 rot, uint colour) {
+  if(cur_mode != MS2D_DRAWMODE_QUADS) ms2d_draw_mode(MS2D_DRAWMODE_QUADS);
   ms2d_texrectpro(tex, dest, src, GLMS_VEC2_ZERO, rot, colour, false, false);
 }
 
 void ms2d_texrectw(ms_texture tex, vec2s pos, uint colour, bool flip_x, bool flip_y) {
+  if(cur_mode != MS2D_DRAWMODE_QUADS) ms2d_draw_mode(MS2D_DRAWMODE_QUADS);
   ms2d_rectangle src = { 0, 0, tex.width, tex.height };
   ms2d_rectangle dest = { pos.x, pos.y, tex.width, tex.height };
   ms2d_texrectpro(tex, dest, src, GLMS_VEC2_ZERO, 0.0f, colour, flip_x, flip_y);
 }
 
 void ms2d_texrectpro(ms_texture tex, ms2d_rectangle dest, ms2d_rectangle src, vec2s origin, f32 rot, uint colour, bool flip_x, bool flip_y) {
-
   sprite_vertex verts[4] = { 0 };
 
   vec2s voffsets[4] = {
@@ -225,9 +267,12 @@ void ms2d_texrectpro(ms_texture tex, ms2d_rectangle dest, ms2d_rectangle src, ve
   vec2s norm_origin = glms_vec2_scale(glms_vec2_add(origin, GLMS_VEC2_ONE), 0.5);
   vec2s origin_offset = glms_vec2_mul(norm_origin, (vec2s){{dest.w, dest.h}});
 
-  float rad = glm_rad(rot);
-  float cosa = cosf(rad);
-  float sina = sinf(rad);
+  float cosa = 1, sina = 0;
+  if(rot!=0) { 
+    float rad = glm_rad(rot);
+    cosa = cosf(rad);
+    sina = sinf(rad);
+  }
   u8 bytes[4] = ms_hex_to_bytes(colour);
 
   for(int i = 0; i < 4; i++) {
@@ -261,7 +306,113 @@ void ms2d_texrectpro(ms_texture tex, ms2d_rectangle dest, ms2d_rectangle src, ve
     memcpy(verts[i].col, bytes, sizeof(u8)*4);
   }
 
-  ms2d_poly_submit(MS2D_QUADS, tex, verts, 4);
+  switch(cur_mode) {
+    case MS2D_DRAWMODE_QUADS: {
+      ms2d_poly_submit(cur_mode, tex, verts, 4);
+    } break;
+
+    case MS2D_DRAWMODE_LINES: {
+      sprite_vertex lines[8] = {
+        verts[0], verts[1],
+        verts[1], verts[2],
+        verts[2], verts[3],
+        verts[3], verts[0]
+      };
+
+      ms2d_poly_submit(MS2D_DRAWMODE_LINES, ms2d_default_texture(), lines, 8);
+    } break;
+
+    case MS2D_DRAWMODE_TRIS: {
+      sprite_vertex tris[6] = {
+        verts[0], verts[1], verts[2],
+        verts[0], verts[2], verts[3]
+      };
+      ms2d_poly_submit(MS2D_DRAWMODE_TRIS, tex, tris, 6);
+    } break;
+  }
+}
+
+
+void ms2d_rect_outline  (f32 x, f32 y, f32 w, f32 h, int thickness, uint colour) {
+  ms2d_rectangle r = {x, y, w, h};
+  ms2d_rect_outlinepro(r, MS2D_ORIGIN_CENTER, 0, thickness, colour);
+}
+
+void ms2d_rect_outliner (f32 x, f32 y, f32 w, f32 h, f32 rot, int thickness, uint colour) {
+  ms2d_rectangle r = {x, y, w, h};
+  ms2d_rect_outlinepro(r, MS2D_ORIGIN_CENTER, rot, thickness, colour);
+}
+
+void ms2d_rect_outlinev (vec2s pos, vec2s size, f32 rot, int thickness, uint colour) {
+  ms2d_rectangle r = {pos.x, pos.y, size.x, size.y};
+  ms2d_rect_outlinepro(r, MS2D_ORIGIN_CENTER, rot, thickness, colour);
+} 
+
+// this implementation is massively inspired by raylib's DrawRectLinesEx function, and therefore follows similar rules:
+// for a 6x6 rectangle with a size 2 border:
+//
+// TTTTTT
+// TTTTTT
+// LL  RR
+// LL  RR
+// BBBBBB
+// BBBBBB
+// 
+// for a 6x6 rectangle with a size -2 border:
+//
+// TTTTTTTTTT
+// TTTTTTTTTT
+// LL      RR
+// LL      RR
+// LL      RR
+// LL      RR
+// LL      RR
+// LL      RR
+// BBBBBBBBBB
+// BBBBBBBBBB
+// 
+void ms2d_rect_outlinepro(ms2d_rectangle r, vec2s origin, f32 rot, int thk, uint colour) {
+
+  if(thk == 0) return;
+  
+  vec2s n_org = glms_vec2_scale(glms_vec2_add(origin, GLMS_VEC2_ONE), 0.5);
+
+  f32 cosa = 1, sina = 0;
+  if (rot != 0) {
+    f32 rrot = glm_rad(rot);
+    cosa = cosf(rrot);
+    sina = sinf(rrot);
+  }
+
+  // unrotated top-left, relative to the pivot
+  f32 tl_x = -(r.w * n_org.x);
+  f32 tl_y = -(r.h * n_org.y);
+
+  // rotated top-left in world space
+  f32 x = r.x + tl_x * cosa - tl_y * sina;
+  f32 y = r.y + tl_x * sina + tl_y * cosa;
+
+  ms2d_rectangle parts[4];
+  if (thk > 0) {
+    parts[0] = (ms2d_rectangle){ 0,         0,         r.w,         thk };
+    parts[1] = (ms2d_rectangle){ 0,         r.h - thk, r.w,         thk };
+    parts[2] = (ms2d_rectangle){ 0,         thk,       thk,         r.h - 2*thk };
+    parts[3] = (ms2d_rectangle){ r.w - thk, thk,       thk,         r.h - 2*thk };
+  } else {
+    thk = -thk;
+    parts[0] = (ms2d_rectangle){ -thk, -thk, r.w + 2*thk, thk };
+    parts[1] = (ms2d_rectangle){ -thk, r.h,  r.w + 2*thk, thk };
+    parts[2] = (ms2d_rectangle){ -thk, 0,    thk,         r.h };
+    parts[3] = (ms2d_rectangle){ r.w,  0,    thk,         r.h };
+  }
+
+  for (int i = 0; i < 4; i++) {
+    // rotate each sub-rect's offset from the main top-left
+    f32 dx = parts[i].x * cosa - parts[i].y * sina;
+    f32 dy = parts[i].x * sina + parts[i].y * cosa;
+    ms2d_rectangle d = { x + dx, y + dy, parts[i].w, parts[i].h };
+    ms2d_rectpro(d, MS2D_ORIGIN_TOP_LEFT, rot, colour);
+  }
 }
 
 void ms2d_colquad  (vec2s a, vec2s b, vec2s c, vec2s d, uint colour) {
@@ -281,7 +432,7 @@ void ms2d_texquad  (ms_texture tex, ms2d_quad q, uint colour) {
     { {{q.d.x, q.d.y}}, {{0, 1}}, ms_hex_to_bytes(colour) }
   };
 
-  ms2d_poly_submit(MS2D_QUADS, tex, v, 4);
+  ms2d_poly_submit(cur_mode, tex, v, 4);
 }
 
 void ms2d_circ(f32 x, f32 y, f32 r, uint col) {
@@ -360,7 +511,7 @@ void ms2d_circ_sec  (f32 x, f32 y, f32 r, f32 start_angle, f32 end_angle, int se
     v_idx++;
   }
 
-  ms2d_poly_submit(MS2D_QUADS, ms2d_default_texture(), verts, total_verts);
+  ms2d_poly_submit(cur_mode, ms2d_default_texture(), verts, total_verts);
 }
 
 void ms2d_poly_submit(ms2d_drawmode mode, ms_texture tex, sprite_vertex* verts, uint num_verts) {
@@ -376,23 +527,19 @@ void ms2d_poly_submit(ms2d_drawmode mode, ms_texture tex, sprite_vertex* verts, 
   if(call->mode != mode || call->texture.id != tex.id) {
     // create new draw call
     if (call->num_verts > 0) {
-      if(call->mode == MS2D_LINES) {
-        call->vert_align = (call->num_verts < 4) ? call->num_verts : call->num_verts%4;
-      } else if (call->mode == MS2D_TRIS) {
-        call->vert_align = (4 - (call->num_verts % 4)) % 4;
+      call->vert_align = (4 - (call->num_verts & 3)) & 3;
+
+      if(
+        cur_batch->num_drawcalls >= cur_batch->max_drawcalls ||
+        cur_batch->num_verts + call->vert_align + num_verts > cur_batch->max_verts
+      ) {
+        ms2d_flush();
+        call = &cur_batch->drawcalls[0];
       } else {
-        call->vert_align = 0;
-      }
-      bool overflow = false;
-      if(!overflow) {
         cur_batch->num_verts += call->vert_align;
         cur_batch->num_drawcalls++;
         call = &cur_batch->drawcalls[cur_batch->num_drawcalls-1];
       }
-    }
-
-    if(cur_batch->num_drawcalls >= cur_batch->max_drawcalls) {
-      ms2d_flush();
     }
     call->mode = mode;
     call->texture = tex;

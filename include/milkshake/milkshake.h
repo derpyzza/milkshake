@@ -20,6 +20,10 @@
 // NOTE:
 // 	> maybe instead of having fixed length name strings i could instead have a
 //    library-wide arena for strings?
+//  > Implement a small abstraction over fbos that makes rendering to a texture and then
+// 	  rendering that texture to the screen a lot less annoying. currently there's a lot
+//    of annoying song-and-dance that i have to do to get one damn render texture drawing
+//    to the screen >:(
 // 
 // 
 // TODO:
@@ -108,7 +112,7 @@
 #define MS_DARK_YELLOW 0xc2a53eff    
 #define MS_DARK_ORANGE 0xb15c2aff    
 
-#define IS_FLAG_SET(n, f) ((n) & (f)) == (f)
+#define IS_FLAG_SET(n, f) (((n) & (f)) == (f))
 #define WRAP(f, x, y) if(f < x){ f = y; } else if(f>y){f = x;} 
 // }} DEFINES
 
@@ -187,9 +191,9 @@ typedef enum ms_vert_attr_kinds {
   // vec4 float or uint32_t modelled as a vec4 ubyte
   MS_VertKind_Colour_N,
   // vec4 int
-  MS_VertKind_Weights_N,
-  // vec4 float
   MS_VertKind_Joints_N,
+  // vec4 float
+  MS_VertKind_Weights_N,
 
   MS_VertKind_Custom_N,
 
@@ -348,15 +352,6 @@ typedef struct ms_buffer {
 	isize size;
 } ms_buffer;
 
-typedef struct ms_mesh {
-	ms_vao vao;
-	ms_buffer *vbo; // may either be a single buffer or an array of buffers
-	ms_buffer *ebo; // may be null
-
-	size_t num_buffers;
-	
-	size_t num_verts, num_indices;
-} ms_mesh;
 
 typedef struct ms_camera {	
 	vec3s   pos;
@@ -370,6 +365,7 @@ typedef struct ms_camera {
 
 	mat4s view, proj;
 } ms_camera;
+
 
 static const ms_vertex_layout MS_VERTLAYOUT_POSCOL = {
 	.num_attribs = 2,
@@ -449,7 +445,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 };
 
 static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
-	.num_attribs = 2,
+	.num_attribs = 4,
 	.stride = 12 * sizeof(float),
 	.attribs = (ms_vertex_attrib[]){
 		// position, vec3f
@@ -492,7 +488,7 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 };
 
 static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
-	.num_attribs = 2,
+	.num_attribs = 6,
 	.stride = 16 * sizeof(float) + 4 * sizeof(int),
 	.attribs = (ms_vertex_attrib[]){
 		// position, vec3f
@@ -580,12 +576,12 @@ static inline vec4s ms_col_from_hex(u32 hex){
 
 static inline u32 ms_col_to_hex(vec4s c) {
 	c = glms_vec4_normalize(c);
-  return ((uint)c.x << 24) & ((uint)c.y << 16) & ((uint)c.z << 8) & (uint)c.w;
+  return ((uint)c.x << 24) | ((uint)c.y << 16) | ((uint)c.z << 8) | (uint)c.w;
 }
 
 static inline vec4s ms_col(u8 r, u8 g, u8 b, u8 a) {
 	return (vec4s) {{
-		(float)r/255.0f, (float)g/255/0.f, (float)b/255/0.f, (float)a/255/0.f
+		(float)r/255.0f, (float)g/255.0f, (float)b/255.0f, (float)a/255.0f
 	}};
 }
 

@@ -12,19 +12,6 @@
 #pragma once
 #include <milkshake/milkshake.h>
 
-// NOTE:
-//   > should i change the default shader and texture get-functions?
-//     currently they use a static bool toggle to make sure not to create
-//     the shader/texture more than once, but is there a better way to do
-//     this?
-//   > for the default texture, i could just load it when the main milkshake
-//     library loads and keep it around for the lifetime of the app. it's a
-//     tiny 1px texture, so it's not likely to eat up too much ram, plus it'll
-//     be handy for a lot more than just a 2D shape renderer.
-// TODO:
-//   > deprecate the spritebatch :(
-
-
 #ifdef __cplusplus
   extern "C" {
 #endif
@@ -45,16 +32,19 @@
 #define MS2D_ORIGIN_CENTER       (vec2s){{ 0,  0}}
 
 
+// drawmode defines how the vertices in a renderbatch are actually laid out
+// and then rendered.
+// lines renders in groups of two verts, tris in threes, and quads in fours
 typedef enum ms2d_drawmode {
-  MS2D_LINES,
-  MS2D_TRIS,
-  MS2D_QUADS
+  MS2D_DRAWMODE_LINES,
+  MS2D_DRAWMODE_TRIS,
+  MS2D_DRAWMODE_QUADS
 } ms2d_drawmode;
 
 typedef struct sprite_vertex {
   vec2s pos;
   vec2s uv;
-  u8 col[4];
+  u8    col[4];
 } sprite_vertex;
 
 typedef struct ms2d_drawcall {
@@ -108,6 +98,8 @@ void ms2d_renderbatch_flush(ms2d_renderbatch * batch);
 void ms2d_flush(void);
 void ms2d_bind_renderbatch(ms2d_renderbatch* batch);
 
+void ms2d_draw_mode(ms2d_drawmode mode);
+
 typedef struct {
   f32 x, y, w, h;
 } ms2d_rectangle; 
@@ -127,9 +119,20 @@ void ms2d_rectr(f32 x, f32 y, f32 w, f32 h, f32 rot, uint colour);
 void ms2d_rectv(vec2s pos, vec2s size, f32 rot, uint colour);
 void ms2d_rectpro(ms2d_rectangle r, vec2s origin, f32 rot, uint colour);
 
+// FIXME: these ones are bugged, for some reason
+void ms2d_rect_line  (f32 x, f32 y, f32 w, f32 h, uint colour);
+void ms2d_rect_liner (f32 x, f32 y, f32 w, f32 h, f32 rot, uint colour);
+void ms2d_rect_linev (vec2s pos, vec2s size, f32 rot, uint colour);
+
+void ms2d_rect_outline  (f32 x, f32 y, f32 w, f32 h, int thickness, uint colour);
+void ms2d_rect_outliner (f32 x, f32 y, f32 w, f32 h, f32 rot, int thickness, uint colour);
+void ms2d_rect_outlinev (vec2s pos, vec2s size, f32 rot, int thickness, uint colour);
+void ms2d_rect_outlinepro(ms2d_rectangle r, vec2s origin, f32 rot, int thickness, uint colour);
+
 // draw part of a texture as a rectangle
 void ms2d_texrect  (ms_texture tex, ms2d_rectangle dest,   ms2d_rectangle src, uint colour);
 void ms2d_texrectv (ms_texture tex, vec2s pos, vec2s size, ms2d_rectangle src, uint colour);
+void ms2d_texrectvr(ms_texture tex, vec2s pos, vec2s size, ms2d_rectangle src, f32 rot, uint colour);
 void ms2d_texrectvo(ms_texture tex, vec2s pos, vec2s size, ms2d_rectangle src, vec2s origin, uint colour);
 void ms2d_texrectr (ms_texture tex, ms2d_rectangle dest,   ms2d_rectangle src, f32 rot, uint colour);
 // draw entire texture as a rect
