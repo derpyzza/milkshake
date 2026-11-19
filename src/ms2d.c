@@ -111,7 +111,7 @@ ms2d_renderbatch ms2d_create_renderbatch(isize num_quads, isize num_drawcalls) {
     , indices
   );
 
-  ms_vao_attach_vbo(out.vao, out.vbo, MS2D_VERTLAYOUT_SPRITE);
+  ms_vao_attach_vbo(0, out.vao, out.vbo, MS2D_VERTLAYOUT_SPRITE);
   ms_vao_attach_ebo(out.vao, out.ebo);
 
   return out;

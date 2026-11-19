@@ -67,8 +67,9 @@
 // {{ DEFINES
 #define MS_VERSION "0.0.0"
 #define MS_NAME_LEN 128     /* string length for name fields in structs to avoid having to allocate strings everywhere */
-#define MAX_SHADER_LOCS 32  /* maximum uniform locations a shader can have */
-#define MAX_SHADERS 64
+#define MS_MAX_SHADER_LOCS 32  /* maximum uniform locations a shader can have */
+#define MS_MAX_SHADERS 64
+#define MS_MAX_VBOS 8
 
 // dynamic library exports are currently not implemented and won't be for
 // a little while, but i'm just leaving this here to remind myself that
@@ -320,11 +321,17 @@ typedef struct ms_pipeline {
 
 
 typedef struct ms_vertex_attrib {
-	int index;
+	int loc; // shader location
+	int vbo; // used only for when you've got multiple vbos going
 	int size;
 	int type;
 	bool normalized;
-	isize offset;
+	isize offset; // byte offset within this attrib's vbo
+	// used for attribs that can have multiple copies
+	// such as the MS_VertKind_Colour_N attrib, in order
+	// to distinguish Colour_0 from Colour_1 from Colour_N
+	// etc.
+	int attr_id;
 
 	// NOTE:
 	// this field is totally optional and is a convenience feature
@@ -339,10 +346,10 @@ typedef struct ms_vertex_attrib {
 
 
 typedef struct ms_vertex_layout {
-	isize num_attribs;
-	int stride; // shared across the entire vbo
-		          // if 0, then it's a
+	int num_attribs; int num_vbos;
+
 	ms_vertex_attrib * attribs;
+	int strides[MS_MAX_VBOS];
 } ms_vertex_layout;
 
 
@@ -369,10 +376,12 @@ typedef struct ms_camera {
 
 static const ms_vertex_layout MS_VERTLAYOUT_POSCOL = {
 	.num_attribs = 2,
-	.stride = 7 * sizeof(float),
+	.num_vbos = 1,
+	.strides[0] = 7 * sizeof(float),
 	.attribs = (ms_vertex_attrib[]){
 		{
-			.index = 0,
+			.loc = 0,
+			.vbo = 0,
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = false,
@@ -380,11 +389,13 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSCOL = {
 			.attr_kind = MS_VertKind_Position,
 		},
 		{
-			.index = 1,
+			.loc = 1,
+			.vbo = 0,
 			.size = 4,
 			.type = GL_FLOAT,
 			.normalized = false,
 			.offset = 3 * sizeof(float),
+			.attr_id = 0,
 			.attr_kind = MS_VertKind_Colour_N,
 		}
 	}
@@ -392,10 +403,12 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSCOL = {
 
 static const ms_vertex_layout MS_VERTLAYOUT_POSUV = {
 	.num_attribs = 2,
-	.stride = 5 * sizeof(float),
+	.num_vbos = 1,
+	.strides[0] = 5 * sizeof(float),
 	.attribs = (ms_vertex_attrib[]){
 		{
-			.index = 0,
+			.loc = 0,
+			.vbo = 0,
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = false,
@@ -403,22 +416,26 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUV = {
 			.attr_kind = MS_VertKind_Position,
 		},
 		{
-			.index = 1,
+			.loc = 1,
+			.vbo = 0,
 			.size = 2,
 			.type = GL_FLOAT,
 			.normalized = false,
 			.offset = 3 * sizeof(float),
+			.attr_id = 0,
 			.attr_kind = MS_VertKind_TexCoord_N,
 		}
 	}
 };
 
 static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
-	.num_attribs = 2,
-	.stride = 9 * sizeof(float),
+	.num_attribs = 3,
+	.num_vbos = 1,
+	.strides[0] = 9 * sizeof(float),
 	.attribs = (ms_vertex_attrib[]){
 		{
-			.index = 0,
+			.loc = 0,
+			.vbo = 0,
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = false,
@@ -426,19 +443,23 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 			.attr_kind = MS_VertKind_Position,
 		},
 		{
-			.index = 1,
+			.loc = 1,
+			.vbo = 0,
 			.size = 2,
 			.type = GL_FLOAT,
 			.normalized = false,
 			.offset = 3 * sizeof(float),
+			.attr_id = 0,
 			.attr_kind = MS_VertKind_TexCoord_N,
 		},
 		{
-			.index = 2,
+			.loc = 2,
+			.vbo = 0,
 			.size = 4,
 			.type = GL_FLOAT,
 			.normalized = false,
 			.offset = 5 * sizeof(float),
+			.attr_id = 0,
 			.attr_kind = MS_VertKind_Colour_N,
 		}
 	}
@@ -446,20 +467,24 @@ static const ms_vertex_layout MS_VERTLAYOUT_POSUVCOL = {
 
 static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 	.num_attribs = 4,
-	.stride = 12 * sizeof(float),
+	.num_vbos = 1,
+	.strides[0] = 12 * sizeof(float),
 	.attribs = (ms_vertex_attrib[]){
 		// position, vec3f
 		{
-			.index = 0,
+			.loc = 0,
+			.vbo = 0,
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = false,
 			.offset = 0,
+			.attr_id = 0,
 			.attr_kind = MS_VertKind_Position,
 		},
 		// normal, vec3f
 		{
-			.index = 1,
+			.loc = 1,
+			.vbo = 0,
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = false,
@@ -468,20 +493,24 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 		},
 		// uv, vec2f
 		{
-			.index = 2,
+			.loc = 2,
+			.vbo = 0,
 			.size = 2,
 			.type = GL_FLOAT,
 			.normalized = false,
 			.offset = 6 * sizeof(float),
+			.attr_id = 0,
 			.attr_kind = MS_VertKind_TexCoord_N,
 		},
 		// colour, vec4f
 		{
-			.index = 3,
+			.loc = 3,
+			.vbo = 0,
 			.size = 4,
 			.type = GL_FLOAT,
 			.normalized = false,
 			.offset = 8 * sizeof(float),
+			.attr_id = 0,
 			.attr_kind = MS_VertKind_Colour_N,
 		}
 	}
@@ -489,11 +518,13 @@ static const ms_vertex_layout MS_VERTLAYOUT_LIT = {
 
 static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 	.num_attribs = 6,
-	.stride = 16 * sizeof(float) + 4 * sizeof(int),
+	.num_vbos = 1,
+	.strides[0] = 16 * sizeof(float) + 4 * sizeof(int),
 	.attribs = (ms_vertex_attrib[]){
 		// position, vec3f
 		{
-			.index = 0,
+			.loc = 0,
+			.vbo = 0,
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = false,
@@ -502,7 +533,8 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 		},
 		// normal, vec3f
 		{
-			.index = 1,
+			.loc = 1,
+			.vbo = 0,
 			.size = 3,
 			.type = GL_FLOAT,
 			.normalized = true,
@@ -511,38 +543,46 @@ static const ms_vertex_layout MS_VERTLAYOUT_SKINNED = {
 		},
 		// uv, vec2f
 		{
-			.index = 2,
+			.loc = 2,
+			.vbo = 0,
 			.size = 2,
 			.type = GL_FLOAT,
 			.normalized = false,
 			.offset = 6 * sizeof(float),
+			.attr_id = 0,
 			.attr_kind = MS_VertKind_TexCoord_N,
 		},
 		// colour, vec4f
 		{
-			.index = 3,
+			.loc = 3,
+			.vbo = 0,
 			.size = 4,
 			.type = GL_FLOAT,
 			.normalized = true,
 			.offset = 8 * sizeof(float),
+			.attr_id = 0,
 			.attr_kind = MS_VertKind_Colour_N,
 		},
 		// joints, vec4i
 		{
-			.index = 4,
+			.loc = 4,
+			.vbo = 0,
 			.size = 4,
 			.type = GL_INT,
 			.normalized = false,
 			.offset = 12 * sizeof(float),
+			.attr_id = 0,
 			.attr_kind = MS_VertKind_Joints_N,
 		},
 		// weights, vec4f
 		{
-			.index = 5,
+			.loc = 5,
+			.vbo = 0,
 			.size = 4,
 			.type = GL_FLOAT,
 			.normalized = true,
 			.offset = 12 * sizeof(float) + 4 * sizeof(int),
+			.attr_id = 0,
 			.attr_kind = MS_VertKind_Weights_N,
 		},
 	}
@@ -657,8 +697,8 @@ ms_vao ms_create_vao(void);
 void ms_destroy_vao(ms_vao vao);
 
 void ms_bind_vao(ms_vao vao);
-void ms_vao_attach_vbo(ms_vao vao, ms_buffer buffer, ms_vertex_layout layout);
-void ms_vao_attach_ebo(ms_vao vao, ms_buffer buffer);
+void ms_vao_attach_vbo(int index, ms_vao vao, ms_buffer vbo, ms_vertex_layout layout);
+void ms_vao_attach_ebo(ms_vao vao, ms_buffer ebo);
 
 // NOTE:
 // if usage is any of the DYNAMIC_* types then data may be NULL

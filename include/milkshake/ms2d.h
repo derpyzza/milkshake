@@ -174,10 +174,11 @@ void ms2d_poly_submit(
 
 static const ms_vertex_layout MS2D_VERTLAYOUT_SPRITE = {
   .num_attribs = 3,
-  .stride = 4 * sizeof(float) + sizeof(u32),
+  .num_vbos = 0,
+  .strides[0] = 4 * sizeof(float) + sizeof(u32),
   .attribs = (ms_vertex_attrib[]){
     {
-      .index = 0,
+      .loc = 0,
       .size = 2,
       .type = GL_FLOAT,
       .normalized = false,
@@ -185,19 +186,21 @@ static const ms_vertex_layout MS2D_VERTLAYOUT_SPRITE = {
       .attr_kind = MS_VertKind_Position,
     },
     {
-      .index = 1,
+      .loc = 1,
       .size = 2,
       .type = GL_FLOAT,
       .normalized = false,
       .offset = 2 * sizeof(float),
+			.attr_id = 0,
       .attr_kind = MS_VertKind_TexCoord_N,
     },
     {
-      .index = 2,
+      .loc = 2,
       .size = 4,
       .type = GL_UNSIGNED_BYTE,
       .normalized = true,
       .offset = 4 * sizeof(float),
+			.attr_id = 0,
       .attr_kind = MS_VertKind_Colour_N,
     },
   }

@@ -72,10 +72,11 @@ static const uint indices[] = {
 
 static const ms_vertex_layout layout = {
   .num_attribs = 3,
-  .stride = 3 * sizeof(float) + sizeof(u32),
+  .num_vbos = 1,
+  .strides[0] = 3 * sizeof(float) + sizeof(u32),
   .attribs = (ms_vertex_attrib[]){
     {
-      .index = 0,
+      .loc = 0,
       .size = 3,
       .type = GL_FLOAT,
       .normalized = false,
@@ -83,7 +84,7 @@ static const ms_vertex_layout layout = {
       .attr_kind = MS_VertKind_Position,
     },
     {
-      .index = 1,
+      .loc = 1,
       .size = 4,
       .type = GL_UNSIGNED_BYTE,
       .normalized = true,
@@ -119,7 +120,7 @@ main(void) {
       , sizeof(indices)
       , indices
     );
-  ms_vao_attach_vbo(cube, vert_buf, layout);  
+  ms_vao_attach_vbo(0, cube, vert_buf, layout);  
   ms_vao_attach_ebo(cube, index_buf);
 
   mat4s model = GLMS_MAT4_IDENTITY

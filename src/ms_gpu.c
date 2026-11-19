@@ -23,6 +23,48 @@
 #include "milkshake/milkshake.h"
 #include "internal.h"
 
+int _gl_type_size(int t) {
+  switch (t) {
+    case GL_FLOAT: case GL_INT: case GL_UNSIGNED_INT: return 4;
+    case GL_SHORT: case GL_UNSIGNED_SHORT: return 2;
+    case GL_BYTE:  case GL_UNSIGNED_BYTE:  return 1;
+  }
+  return 0;
+}
+
+
+ms_vertex_layout ms_vert_layout_resolve(ms_vertex_layout out) {
+	int cursor[MS_MAX_VBOS] = {0};
+  out.num_vbos = 0;
+  for (isize i = 0; i < out.num_attribs; i++) {
+    ms_vertex_attrib* a = &out.attribs[i];
+    int bytes = (a->size * _gl_type_size(a->type) + 3) & ~3;
+    a->offset = cursor[a->vbo];
+    cursor[a->vbo] += bytes;
+    if (a->vbo + 1 > out.num_vbos) {
+    	out.num_vbos = a->vbo + 1;
+    }
+  }
+  for (int b = 0; b < out.num_vbos; b++) {
+  	out.strides[b] = cursor[b];
+  }
+  return out;
+}
+
+ms_vertex_layout ms_vert_layout_interleaved(ms_vertex_layout base) {
+	for(int i = 0; i < base.num_attribs; i++) {
+		base.attribs[i].vbo = 0;
+	}
+	return ms_vert_layout_resolve(base);
+}
+
+ms_vertex_layout ms_vert_layout_separate(ms_vertex_layout base) {
+	for (isize i = 0; i < base.num_attribs; i++) {
+		base.attribs[i].vbo = (int)i;
+	}
+  return ms_vert_layout_resolve(base);
+}
+
 void ms_draw_elems(ms_vao vao, int prim_mode, int type, isize count, const int* start) {
 	ms_bind_vao(vao);
 	glDrawElements(prim_mode, count, type, start);
@@ -105,19 +147,19 @@ void ms_destroy_buffer(ms_buffer buffer) {
 }
 
 
-void ms_vao_attach_vbo(ms_vao vao, ms_buffer buffer, ms_vertex_layout layout) {
+void ms_vao_attach_vbo(int index, ms_vao vao, ms_buffer buffer, ms_vertex_layout layout) {
 	ms_bind_vao(vao);
 	glBindBuffer(buffer.type, buffer.id);
 
 	dforeach(ms_vertex_attrib, attr, layout.attribs, layout.num_attribs) {
-		glEnableVertexAttribArray(attr->index);
+		glEnableVertexAttribArray(attr->loc);
 
 		glVertexAttribPointer(
-		  attr->index,
+		  attr->loc,
 		  attr->size,
 		  attr->type,
 		  attr->normalized,
-		  layout.stride,
+		  layout.strides[index],
 		  (const void*) attr->offset
 		);
 	}
