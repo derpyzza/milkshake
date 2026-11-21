@@ -152,8 +152,9 @@ void ms_vao_attach_vbo(int index, ms_vao vao, ms_buffer buffer, ms_vertex_layout
 	glBindBuffer(buffer.type, buffer.id);
 
 	dforeach(ms_vertex_attrib, attr, layout.attribs, layout.num_attribs) {
-		glEnableVertexAttribArray(attr->loc);
+		if(attr->vbo != index) continue;
 
+		glEnableVertexAttribArray(attr->loc);
 		glVertexAttribPointer(
 		  attr->loc,
 		  attr->size,

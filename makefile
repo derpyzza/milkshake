@@ -6,6 +6,10 @@ OBJ       := $(BUILD_DIR)/$(OBJ_DIR)/$(PLATFORM)
 PROG_NAME := libmilkshake
 PROG      := $(BUILD_DIR)/$(PLATFORM)/$(PROG_NAME).a
 
+LIBDERP_DIR     ?= libs/libderp
+LIBDERP_INCLUDE ?= $(LIBDERP_DIR)
+LIBDERP_LIB     ?= $(LIBDERP_DIR)/libderp.a
+
 ifeq ($(PLATFORM), linux)
     CC          := clang
     AR          := ar
@@ -40,7 +44,7 @@ INCLUDES := -I include/
 INCLUDES += -I libs/
 INCLUDES += -I libs/glad/include
 INCLUDES += -I libs/cglm/include
-INCLUDES += -I libs/libderp/
+INCLUDES += -I $(LIBDERP_INCLUDE)
 INCLUDES += -I $(SDL3_INCLUDE)
 
 SRC_FILES    := $(shell find src -name '*.c')
@@ -52,10 +56,7 @@ GLAD_OBJ     := $(OBJ)/libs/glad.o
 EXTERN_SRC   := libs/extern.c
 EXTERN_OBJ   := $(OBJ)/libs/extern.o
 
-LIBDERP_SRC  := $(wildcard libs/libderp/*.c)
-LIBDERP_OBJS := $(patsubst libs/libderp/%.c, $(OBJ)/libderp/%.o, $(LIBDERP_SRC))
-
-ALL_OBJS := $(SRC_OBJS) $(GLAD_OBJ) $(EXTERN_OBJ) $(LIBDERP_OBJS)
+ALL_OBJS := $(SRC_OBJS) $(GLAD_OBJ) $(EXTERN_OBJ)
 DEP_FILES := $(ALL_OBJS:.o=.d)
 
 LSAN_OPTIONS := suppressions=lsan.supp
@@ -92,7 +93,7 @@ EX_BIN := $(patsubst $(EX_DIR)/%.c,$(EX_OUT)/%,$(EX_SRC))
 $(EX_BIN): $(EX_OUT)/% : $(EX_DIR)/%.c
 	@echo "Building example: $<"
 	@mkdir -p $(@D)
-	$(CC) $< -o $@ $(CFLAGS) $(INCLUDES) $(EX_LDFLAGS) $(PROG)
+	$(CC) $< -o $@ $(CFLAGS) $(INCLUDES) $(EX_LDFLAGS) $(PROG) $(LIBDERP_LIB)
 
 examples: debug $(EX_BIN) 
 
@@ -107,11 +108,6 @@ $(GLAD_OBJ): libs/glad/src/glad.c
 	$(CC) -c $< -o $@ $(CFLAGS) $(DEPFLAGS) $(INCLUDES)
 
 $(EXTERN_OBJ): libs/extern.c
-	@mkdir -p $(@D)
-	@echo "  CC  $<"
-	$(CC) -c $< -o $@ $(CFLAGS) $(DEPFLAGS) $(INCLUDES)
-
-$(OBJ)/libderp/%.o: libs/libderp/%.c
 	@mkdir -p $(@D)
 	@echo "  CC  $<"
 	$(CC) -c $< -o $@ $(CFLAGS) $(DEPFLAGS) $(INCLUDES)

@@ -1,6 +1,6 @@
 #include "milkshake/ms3d.h"
 #include "cgltf/cgltf.h"
-#include "derp.h"
+#include "libderp/derp.h"
 #include "milkshake/milkshake.h"
 
 #define MAX_MESHES 128
@@ -8,11 +8,11 @@ int mesh_offsets[MAX_MESHES];
 
 struct mod_ctx {
     ms3d_model * m;
-    cgltf_data * data;
+    const cgltf_data * const data;
     d_allocator alloc;
 };
 
-ms3d_transform trs_from_mat4 ( mat4s m ) {
+ms3d_transform ms3d_trs_from_mat4 ( mat4s m ) {
 	ms3d_transform t = { 0 };
 	
 	t.pos = (vec3s){{ m.col[3].x, m.col[3].y, m.col[3].z }};
@@ -39,7 +39,7 @@ ms3d_transform trs_from_mat4 ( mat4s m ) {
 	return t;
 }
 
-mat4s trs_to_mat4 ( ms3d_transform * t ) {
+mat4s ms3d_trs_to_mat4 ( ms3d_transform * t ) {
 	if (!t->dirty) {
 	 return t->matrix;
 	}
@@ -58,6 +58,7 @@ void load_mesh_data (struct mod_ctx ctx, ms_vertex_layout layout);
 void load_node_data (struct mod_ctx ctx);
 void load_skin_data (struct mod_ctx ctx);
 void load_anim_data (struct mod_ctx ctx);
+void load_tex_data  (struct mod_ctx ctx);
 void update_global_transforms (ms3d_model * m);
 
 void update_global_transforms(ms3d_model * m) {
@@ -66,9 +67,9 @@ void update_global_transforms(ms3d_model * m) {
 
         ms3d_node * parent = &m->nodes[n->parent_id];
         if(n->parent_id >= 0) {
-            n->world_mat = glms_mat4_mul(parent->world_mat , trs_to_mat4(&n->trs));
+            n->world_mat = glms_mat4_mul(parent->world_mat , ms3d_trs_to_mat4(&n->trs));
         } else {
-            n->world_mat = trs_to_mat4(&n->trs);
+            n->world_mat = ms3d_trs_to_mat4(&n->trs);
         }
     }
 }
@@ -103,11 +104,11 @@ void _cgltf_free_cb (void * user, void * ptr) {
 }
 
 
-cgltf_data* load_gltf_data ( const char *path, d_allocator alloc ) {
+cgltf_data* load_gltf_data ( const char *path, d_allocator * alloc ) {
     cgltf_options opts = {0};
     cgltf_data * data = NULL;
 
-    dstr file_data = dfile_read_alloc(path, alloc);
+    dstr file_data = dfile_read_alloc(path, *alloc);
     if(file_data.cptr == NULL || file_data.len == 0) {
         return data;
     }
@@ -115,7 +116,7 @@ cgltf_data* load_gltf_data ( const char *path, d_allocator alloc ) {
     opts.file.release = _cgltf_file_release_cb;
     opts.memory.alloc_func = _cgltf_alloc_cb;
     opts.memory.free_func  = _cgltf_free_cb;
-    opts.memory.user_data  = (void*)&alloc;
+    opts.memory.user_data  = (void*)alloc;
 
     if ( cgltf_parse(&opts, file_data.cptr, file_data.len, &data) != cgltf_result_success ) {
         dlog_error("[GLTF Loader]: Could not parse gltf file: %s", path);
@@ -160,7 +161,7 @@ bool ms3d_load_model(ms3d_model *m, const char *path, d_allocator alloc, const m
 
     d_arena scratch = darena_init(512, alloc);
     d_allocator scratch_alloc = darena_make_allocator(&scratch);
-    cgltf_data* data = load_gltf_data(path, scratch_alloc);
+    cgltf_data* data = load_gltf_data(path, &scratch_alloc);
 
     if(!data) {
         return false;
@@ -173,7 +174,7 @@ bool ms3d_load_model(ms3d_model *m, const char *path, d_allocator alloc, const m
     }
 
     // preload mesh offsets
-    memset(mesh_offsets, 0, MAX_MESHES);
+    memset(mesh_offsets, 0, MAX_MESHES * sizeof(int));
     int offset = 0;
     for(int i = 0; i < data->meshes_count; i++) {
         mesh_offsets[i] = offset;
@@ -199,18 +200,22 @@ bool ms3d_load_model(ms3d_model *m, const char *path, d_allocator alloc, const m
         dlog_debug("     >> Extras: %s", data->extras.data);
     }
 
-    struct mod_ctx ctx;
-    ctx.alloc = alloc;
-    ctx.m = m;
-    ctx.data = data;
+    struct mod_ctx ctx = {
+        .alloc = alloc,
+        .m = m,
+        .data = data
+    };
 
-    m->meshes = d_calloc(m->num_meshes, sizeof(ms3d_mesh));
-    m->nodes  = d_calloc(m->num_nodes,  sizeof(ms3d_node));
+    m->meshes = dalloc_calloc(ctx.alloc, m->num_meshes, sizeof(ms3d_mesh));
+    m->nodes  = dalloc_calloc(ctx.alloc, m->num_nodes,  sizeof(ms3d_node));
     if(m->num_textures > 0) {
+        m->textures = dalloc_calloc(ctx.alloc, m->num_textures, sizeof(ms_texture)); 
         // load textures
+        load_tex_data(ctx);
     }
 
     if(m->num_materials > 0) {
+        m->materials = dalloc_calloc(ctx.alloc, m->num_materials, sizeof(void*));
         // load materials
         if(opts->mat_callback) {
             opts->mat_callback(data->materials, opts->mat_cb_data);
@@ -239,7 +244,6 @@ bool ms3d_load_model(ms3d_model *m, const char *path, d_allocator alloc, const m
 
     if(data != NULL) {
         cgltf_free(data);
-        return false;
     }
 
     return true;
@@ -266,7 +270,7 @@ void load_node_data(struct mod_ctx ctx) {
             for(int i = 0; i < src->children_count; i++) {
                 cgltf_node* node = src->children[i];
                 int index = (int)(node - ctx.data->nodes);
-                dest->children[i] = ctx.m->nodes[index];
+                dest->children[i] = &ctx.m->nodes[index];
             }
         }
 
@@ -298,8 +302,8 @@ void load_skin_data (struct mod_ctx ctx) {
         skin->name = dstr_from(src->name, ctx.alloc);
 
         skin->num_joints = src->joints_count;
-        skin->joints = d_calloc(skin->num_joints, sizeof(int));
-        skin->inv_bind = d_calloc(skin->num_joints, sizeof(mat4s));
+        skin->joints = dalloc_calloc(ctx.alloc, skin->num_joints, sizeof(int));
+        skin->inv_bind = dalloc_calloc(ctx.alloc, skin->num_joints, sizeof(mat4s));
 
         for(int j = 0; j < skin->num_joints; j++) {
             skin->joints[j] = (int)(src->joints[j] - ctx.data->nodes);            
@@ -330,15 +334,15 @@ ms3d_track_type get_track_type(cgltf_animation_channel ch) {
     }
 }
 
-ms3d_anim_track load_track( const cgltf_animation_channel * ch, const cgltf_animation_sampler * samp, const cgltf_data* data) {
+ms3d_anim_track load_track( const cgltf_animation_channel * ch, const cgltf_animation_sampler * samp, struct mod_ctx ctx) {
     ms3d_anim_track track = {0};
 
-    track.node_id = (int)(ch->target_node - data->nodes);
+    track.node_id = (int)(ch->target_node - ctx.data->nodes);
 
     track.num_keys = samp->input->count;
-    track.values = d_alloc(sizeof(vec4s) * track.num_keys);
+    track.values = dalloc_alloc(ctx.alloc, sizeof(vec4s) * track.num_keys);
 
-    track.times = d_alloc(sizeof(f32) * track.num_keys);
+    track.times = dalloc_alloc(ctx.alloc, sizeof(f32) * track.num_keys);
     for ( int i = 0; i < track.num_keys; i++ ) {
         cgltf_accessor_read_float(samp->input, i, &track.times[i], 1);
     }
@@ -380,12 +384,12 @@ ms3d_anim_track load_track( const cgltf_animation_channel * ch, const cgltf_anim
     return track;
 }
 
-void load_animation_data( struct mod_ctx ctx ) {
+void load_anim_data( struct mod_ctx ctx ) {
     for(int i = 0; i < ctx.m->num_anims; i++) {
         const cgltf_animation *src = &ctx.data->animations[i];
         ms3d_anim * dest = &ctx.m->anims[i];
         dest->num_tracks = src->channels_count;
-        dest->tracks = d_calloc(dest->num_tracks, sizeof(ms3d_anim_track));
+        dest->tracks = dalloc_calloc(ctx.alloc, dest->num_tracks, sizeof(ms3d_anim_track));
         dest->name = dstr_from(src->name, ctx.alloc);
 
         f32 max_time = 0;
@@ -396,7 +400,7 @@ void load_animation_data( struct mod_ctx ctx ) {
             cgltf_animation_channel * ch = &src->channels[j];
             cgltf_animation_sampler * samp = ch->sampler;
 
-            *track = load_track(ch, samp, ctx.data);
+            *track = load_track(ch, samp, ctx);
 
             if(track->num_keys > 0) {
                 f32 last = track->times[track->num_keys - 1];
@@ -406,6 +410,153 @@ void load_animation_data( struct mod_ctx ctx ) {
             }
         }
         dest->duration = max_time;
+    }
+}
+
+ms_sampler load_sampler_data ( const cgltf_sampler * samp ) {
+    ms_sampler out = { 0 };
+
+    switch (samp->wrap_t) {
+        case cgltf_wrap_mode_clamp_to_edge:
+            out.wrap_t = GL_CLAMP_TO_EDGE;
+        break;
+        case cgltf_wrap_mode_mirrored_repeat:
+            out.wrap_t = GL_MIRRORED_REPEAT;
+        break;
+        case cgltf_wrap_mode_repeat:
+            out.wrap_t = GL_REPEAT;
+        break;
+    }
+
+    switch (samp->wrap_s) {
+        case cgltf_wrap_mode_clamp_to_edge:
+            out.wrap_s = GL_CLAMP_TO_EDGE;
+        break;
+        case cgltf_wrap_mode_mirrored_repeat:
+            out.wrap_s = GL_MIRRORED_REPEAT;
+        break;
+        case cgltf_wrap_mode_repeat:
+            out.wrap_s = GL_REPEAT;
+        break;
+    }
+
+    switch (samp->min_filter) {
+        case cgltf_filter_type_linear:
+            out.min_filter = GL_LINEAR;
+        break;
+
+        case cgltf_filter_type_nearest:
+            out.min_filter = GL_NEAREST;
+        break;
+
+        case cgltf_filter_type_linear_mipmap_linear:
+            out.min_filter = GL_LINEAR_MIPMAP_LINEAR;
+        break;
+
+        case cgltf_filter_type_linear_mipmap_nearest:
+            out.min_filter = GL_LINEAR_MIPMAP_NEAREST;
+        break;
+
+        case cgltf_filter_type_nearest_mipmap_linear:
+            out.min_filter = GL_NEAREST_MIPMAP_LINEAR;
+        break;
+
+        case cgltf_filter_type_nearest_mipmap_nearest:
+            out.min_filter = GL_NEAREST_MIPMAP_NEAREST;
+        break;
+        case cgltf_filter_type_undefined:
+            dlog_warn("Unknown filter type");
+        break;
+    }
+
+    switch (samp->mag_filter) {
+        case cgltf_filter_type_linear:
+            out.max_filter = GL_LINEAR;
+        break;
+
+        case cgltf_filter_type_nearest:
+            out.max_filter = GL_NEAREST;
+        break;
+
+        case cgltf_filter_type_linear_mipmap_linear:
+            out.max_filter = GL_LINEAR_MIPMAP_LINEAR;
+        break;
+
+        case cgltf_filter_type_linear_mipmap_nearest:
+            out.max_filter = GL_LINEAR_MIPMAP_NEAREST;
+        break;
+
+        case cgltf_filter_type_nearest_mipmap_linear:
+            out.max_filter = GL_NEAREST_MIPMAP_LINEAR;
+        break;
+
+        case cgltf_filter_type_nearest_mipmap_nearest:
+            out.max_filter = GL_NEAREST_MIPMAP_NEAREST;
+        break;
+        case cgltf_filter_type_undefined:
+            dlog_warn("Unknown filter type");
+        break;
+    }
+
+    return out;
+}
+
+void load_tex_data  (struct mod_ctx ctx) {
+
+    for(int i = 0; i < ctx.data->textures_count; i++) {
+        const cgltf_texture * gltex = &ctx.data->textures[i];
+        const cgltf_image * image = gltex->image;
+
+        if (!image) dlog_error("Image is NULL");
+
+        ms_sampler samp = load_sampler_data(gltex->sampler);
+        ms_texture * tex = &ctx.m->textures[i];
+
+        // NOTE: Adapted from raylib's LoadImageFromGltf function
+        if(image->uri){
+            // embedded image
+            if (strncmp(image->uri, "data:", 5) == 0) {
+                int i = 0;
+                while ( (image->uri[i] != ',') && (image->uri[i] != 0)) i++;
+
+                if(image->uri[i] == 0) {
+                    dlog_warn("gltf data uri is not a valid image");
+                    continue;
+                }
+
+                int b64_len = (int)strlen(image->uri + i + 1);
+                while (image->uri[i + b64_len] == '=') b64_len--;
+                int encoded_bits = b64_len*6 - (b64_len*6) % 8 ;
+                int image_size = encoded_bits/8 ;
+                void *data = 0;
+
+                cgltf_options opt = {0};
+                if (cgltf_load_buffer_base64(&opt, image_size, image->uri + i + 1, &data) == cgltf_result_success) {
+                    *tex = ms_load_texture_from_memory((const u8*)data, image_size, &samp);
+                    cgltf_free(data);
+                }
+            } else {
+                isize len = strlen(image->uri);
+                char* path = dalloc_alloc(ctx.alloc, len * sizeof(char) + 1 );
+                memcpy(path, image->uri, len+1);
+                *tex = ms_load_texture( path, &samp );
+            }            
+        } else if ((image->buffer_view != NULL) && (image->buffer_view->buffer->data != NULL)) {
+            const cgltf_buffer_view * buf = image->buffer_view;
+            u8* data = dalloc_alloc(ctx.alloc, buf->size);
+            int offset = buf->offset;
+            int stride = buf->stride ? buf->stride : 1;
+            for(int i = 0; i < buf->size; i++) {
+                data[i] = ((u8*)buf->buffer->data)[offset];
+                offset += stride;
+            }
+
+            *tex = ms_load_texture_from_memory( (const u8*)data, buf->size, &samp );
+            d_free(data);
+        } else {
+            dlog_error("[GLTF::Image] No image :/");
+            // *tex = G_error_tex;
+        }
     }
 }
 
@@ -454,8 +605,10 @@ bool _read_attr(const cgltf_accessor * acc, d_allocator alloc, bool is_float, in
 bool _validate_layout(dstr name, ms_vertex_layout layout, struct vert_data* verts, isize num_attrs) {
     for(int i = 0; i < layout.num_attribs; i++) {
         bool has_attr = false;
+        dlog_debug("_validate attr: %i", layout.attribs[i].attr_kind);
         for(int j = 0; j < num_attrs; j++) {
             if(layout.attribs[i].attr_kind == verts[j].attrib) {
+                dlog_debug("_validate attr: %i, i: %i, j: %i", layout.attribs[i].attr_kind, i, j);
                 has_attr = true;
                 break;
             }
@@ -526,7 +679,7 @@ void _pack_attr(u8* buffer, isize stride, const struct vert_data * vdata, const 
     }
 }
 
-bool upload_mesh(ms3d_mesh* mesh, ms_vertex_layout layout, struct vert_data * verts, isize num_attrs, uint* indices, d_allocator alloc) {
+bool upload_mesh(ms3d_mesh* mesh, const ms_vertex_layout layout, struct vert_data * verts, isize num_attrs, uint* indices, d_allocator alloc) {
     if(!mesh) {
         dlog_error("[MESH] mesh is null");
         return false;
@@ -552,49 +705,28 @@ bool upload_mesh(ms3d_mesh* mesh, ms_vertex_layout layout, struct vert_data * ve
 
     mesh->num_vbos = layout.num_vbos;
 
-    glGenVertexArrays(1, &mesh->vao.id);
+    mesh->vao = ms_create_vao();
     glBindVertexArray(mesh->vao.id);
 
-    for(int i = 0; i < layout.num_vbos; i++) {
-        glGenBuffers(1, &mesh->vbo[i].id);
-    }
-
     if(mesh->num_indices > 0) {
-        glGenBuffers(1, &mesh->ebo.id);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->ebo.id);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh->num_indices * sizeof(uint), indices, GL_STATIC_DRAW);
+        ms_buffer ebo = ms_create_buffer(MS_BufferType_Index, MS_BufferUsage_StaticDraw, mesh->num_indices * sizeof(uint), indices);
+        ms_vao_attach_ebo(mesh->vao, mesh->ebo);
     }
 
-    int last_vbo = -1;
-    for(int i = 0; i < layout.num_vbos; i++) {
-        int stride = layout.strides[i];
+    for(int vbo_id = 0; vbo_id < layout.num_vbos; vbo_id++) {
+        int stride = layout.strides[vbo_id];
         u8* buf = dalloc_calloc(alloc, mesh->num_verts, stride);
 
         // pack attribute arrays into single buffer per vbo
-        for(int j = 0; j < layout.num_attribs; j++) {
-            const ms_vertex_attrib* attr = &layout.attribs[i];
-            if (attr->vbo != i) continue;
+        for(int attr_id = 0; attr_id < layout.num_attribs; attr_id++) {
+            const ms_vertex_attrib* attr = &layout.attribs[attr_id];
+            if (attr->vbo != vbo_id) continue;
             const struct vert_data* src = _find_source(verts, num_attrs, attr->attr_kind, attr->attr_id);
             _pack_attr(buf + attr->offset, stride, src, attr, mesh->num_verts);
         }
 
-        glGenBuffers(1, &mesh->vbo[i].id);
-        glBindBuffer(GL_ARRAY_BUFFER, mesh->vbo[i].id);
-        glBufferData(GL_ARRAY_BUFFER, mesh->num_verts * stride, buf, GL_STATIC_DRAW);
-        
-        for (isize j = 0; j < layout.num_attribs; j++) {
-            const ms_vertex_attrib* a = &layout.attribs[j];
-            if (a->vbo != i) continue;
-
-            glEnableVertexAttribArray(a->loc);
-            
-            void* off = (void*)(intptr_t)a->offset;
-            if (a->type != GL_FLOAT && !a->normalized) {
-                glVertexAttribIPointer(a->loc, a->size, a->type, stride, off);
-            } else {
-                glVertexAttribPointer(a->loc, a->size, a->type, a->normalized, stride, off);
-            }
-        }
+        mesh->vbo[vbo_id] = ms_create_buffer(MS_BufferType_Vertex, MS_BufferUsage_StaticDraw, mesh->num_verts * stride, buf);
+        ms_vao_attach_vbo(vbo_id, mesh->vao, mesh->vbo[vbo_id], layout);
     }
 
     glBindVertexArray(0);
@@ -616,6 +748,9 @@ void _norm_weights(float * vp, isize num_verts) {
 }
 
 void load_mesh_data (struct mod_ctx ctx, ms_vertex_layout layout) {
+    for(int i = 0; i < layout.num_attribs; i++) {
+        dlog_debug("ATTR kind: %i", layout.attribs[i].attr_kind);
+    }
 
     d_arena vert_arena = darena_init(512, ctx.alloc);
     // temporary allocator
@@ -623,19 +758,19 @@ void load_mesh_data (struct mod_ctx ctx, ms_vertex_layout layout) {
 
     int mesh_index = 0;
     for (int i = 0; i < (int)ctx.data->meshes_count; i++) {
-        cgltf_mesh * cgltf_mesh = &(ctx.data->meshes[i]);
-        if(cgltf_mesh->extras.data) dlog_debug("[Mesh::%s] extras: %s", cgltf_mesh->name, cgltf_mesh->extras.data);
+        cgltf_mesh * src_mesh = &(ctx.data->meshes[i]);
+        if(src_mesh->extras.data) dlog_debug("[Mesh::%s] extras: %s", src_mesh->name, src_mesh->extras.data);
 
         // each primitive turns into an ms3d_mesh
-        for(int j = 0; j < (int)cgltf_mesh->primitives_count; j++) {
-            const cgltf_primitive* prim = &(cgltf_mesh->primitives[j]);
+        for(int j = 0; j < (int)src_mesh->primitives_count; j++) {
+            const cgltf_primitive* prim = &(src_mesh->primitives[j]);
 
             if (prim->type != cgltf_primitive_type_triangles) {
                 continue;
             }
 
             ms3d_mesh * cmesh = &(ctx.m->meshes[mesh_index]);
-            cmesh->name = dstr_from(cgltf_mesh->name, ctx.alloc);
+            cmesh->name = dstr_from(src_mesh->name, ctx.alloc);
 
             if(prim->material) {
                 int index = (int)(prim->material - ctx.data->materials);
@@ -645,6 +780,7 @@ void load_mesh_data (struct mod_ctx ctx, ms_vertex_layout layout) {
             }
 
             const isize num_attrs = prim->attributes_count;
+            dlog_debug("[MESH] %s prim #%i has %li attributes", src_mesh->name, j, num_attrs);
             const isize num_verts = prim->attributes[0].data->count;
             isize num_index = 0;
 

@@ -26,6 +26,12 @@ void ms_bind_texture(ms_texture texture) {
 	}
 }
 
+void ms_bind_texture_slot(ms_texture texture, int slot) {
+	dassert(slot > -1, "texture slot must not be negative")
+	glActiveTexture(GL_TEXTURE0 + slot);
+	glBindTexture(GL_TEXTURE_2D, texture.id);
+}
+
 void image_get_fmt(int format, int *infmt, int* outfmt) {
 	switch (format) {
 		case 1: { *infmt = GL_R8;    *outfmt = GL_RED;  } break;
@@ -52,40 +58,35 @@ ms_create_texture(
 		.height = h,
 	};
 	
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glCreateTextures(GL_TEXTURE_2D, 1, (GLuint*)&out.id);
+	glGenTextures(1, &out.id);
+	glBindTexture(GL_TEXTURE_2D, out.id);
 
 	if (sampler) {
-		glTextureParameteri(out.id, GL_TEXTURE_WRAP_S, sampler->wrap_s);	
-		glTextureParameteri(out.id, GL_TEXTURE_WRAP_T, sampler->wrap_t);
-		glTextureParameteri(out.id, GL_TEXTURE_MIN_FILTER, sampler->min_filter);
-		glTextureParameteri(out.id, GL_TEXTURE_MAG_FILTER, sampler->max_filter);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, sampler->wrap_s);	
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, sampler->wrap_t);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampler->min_filter);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler->max_filter);
 	} else {
-		glTextureParameteri(out.id, GL_TEXTURE_WRAP_S, GL_REPEAT);	
-		glTextureParameteri(out.id, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTextureParameteri(out.id, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-		glTextureParameteri(out.id, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	}
 
 	int levels = 1 + floor(log2(fmax(out.width, out.height)));
 
-	glTextureStorage2D(
-	  out.id,
-	  levels,
+	glTexImage2D(
+	  GL_TEXTURE_2D,
+	  0,
 	  infmt,
 	  out.width,
-	  out.height
+	  out.height,
+	  0,
+	  outfmt,
+	  GL_UNSIGNED_BYTE,
+	  data
 	);
-  glTextureSubImage2D(
-    out.id,             // Texture handle
-    0,               // Mipmap level
-    0, 0,            // Offset (x, y)
-    out.width,       // Width
-    out.height,      // Height
-    outfmt,         // Pixel format
-    GL_UNSIGNED_BYTE,// Data type
-    data             // Pointer to pixels
-  );
+	glGenerateMipmap(GL_TEXTURE_2D);
 
 	return out;
 }

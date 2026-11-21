@@ -29,7 +29,7 @@ ms_window ms_init_window(int width, int height, const char* title, int flags) {
 	// TODO: compiler flag for forcing wayland
 	SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "x11");
 #	endif
-	dlog_init(DLOG_DEBUG);
+	dlog_init(DLOG_TRACE);
 
 	ms_window out = {0};
 

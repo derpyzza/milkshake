@@ -1,6 +1,18 @@
 #pragma once
-#include "derp.h"
+#include "libderp/derp.h"
 #include "milkshake/milkshake.h"
+
+/*
+  NOTE:
+  > eventually i'd like to add a default texture that represents erroneous or incorrectly loaded textures.
+    ideally this should be overridable by the user s they can provide their own texture if they so wish.
+  > materials are still kinda weird, i need to figure out what to do with them.
+  > idk what to do about vertex data handling. there needs to be some sort of fine-grained system where
+    you can extract vertex data from a model or even specific sub-meshes for collision data or whatever
+    else and then discard the rest, while it also being super easy to use and manage.
+    currently the loader just loads all the vertex data into an arena, uploads it to the GPU, and then
+    clears the arena for the next batch of vertices.
+*/
 
 typedef enum ms3d_interp {
 	MS3D_INTERP_STEP,
@@ -30,7 +42,7 @@ typedef struct ms3d_node {
   dstr name;
 
   int parent_id;
-  struct ms3d_node * children; int num_children;
+  struct ms3d_node ** children; int num_children;
 
   ms3d_transform trs;
   mat4s world_mat;
@@ -86,10 +98,6 @@ typedef struct ms3d_model {
     , num_nodes
     , num_skins
     , num_anims
-    // these two actually aren't stored by the model
-    // itself, and are instead held in global caches.
-    // the num_* fields exist purely for checking
-    // purposes.
     , num_textures
     , num_materials
     ;
@@ -99,8 +107,12 @@ typedef struct ms3d_model {
   ms3d_skin * skins ;
   ms3d_anim * anims ;
 
-  int * materials; // indexes into global material arrays
-  int * textures;  // indexes into global texture arrays
+  // temporary. eventually i should replace textures with
+  // indices to textures that are stored by the program itself,
+  // so that you can skip loading textures that have already been loaded.
+  ms_texture * textures;
+  // also temporary, i'm not sure what to do with materials yet.
+  void ** materials; // indexes into global material arrays
 } ms3d_model;
 
 typedef struct ms3d_model_data {
@@ -121,5 +133,5 @@ typedef struct {
 bool ms3d_load_model( ms3d_model * model, const char* path, d_allocator alloc, const ms3d_model_opts * opts );
 
 ms3d_transform ms3d_trs_from_mat4 ( mat4s m );
-mat4s ms3d_trs_to_mat4 ( ms3d_transform t );
+mat4s ms3d_trs_to_mat4 ( ms3d_transform * t );
 

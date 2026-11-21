@@ -150,6 +150,7 @@ typedef enum ms_uniform_type{
 	MS_Uniform_Uint3,
 	MS_Uniform_Uint4,
 
+	MS_Uniform_Matrix, // note: the ms_shader_set_value[_*] functions do not support this
 	MS_Uniform_Sampler2D,
 
 	MS_UNIFORM_COUNT
@@ -689,7 +690,7 @@ ms_texture ms_load_texture( const char* path, const ms_sampler * sampler );
 ms_texture ms_load_texture_from_memory( const u8* data, int data_len, const ms_sampler * sampler );
 void ms_bind_texture(ms_texture texture);
 // UNIMPLEMENTED:
-void ms_bind_texture_slot(ms_texture texture, uint slot);
+void ms_bind_texture_slot(ms_texture texture, int slot);
 void ms_destroy_texture(ms_texture tex);
 
 // === VERTEX ARRAYS AND BUFFERS ===

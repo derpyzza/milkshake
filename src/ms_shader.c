@@ -127,6 +127,10 @@ void ms_shader_set_value_v(ms_shader shader, ms_uniform loc, const void * data, 
     case MS_Uniform_Uint4: glUniform4uiv(loc.id, count, (uint*)data); break;
 
     case MS_Uniform_Sampler2D: glUniform1iv(loc.id, count, (int*)data); break;
+    case MS_Uniform_Matrix:
+      dlog_error("ms_shader_set_value[_v] does not support Matrix uniforms. use ms_shader_set_mat4[_v] instead");
+      return;
+    break;
     default: {
       dlog_error("unknown uniform type %i for shader (%i)", val_type, shader.id);
       break;
